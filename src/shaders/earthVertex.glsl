@@ -1,0 +1,11 @@
+varying vec2 vUv;
+varying vec3 vNormal;
+varying vec3 vPosition;
+
+void main() {
+  vUv = uv;
+  // Use world space normal instead of view space
+  vNormal = normalize(mat3(modelMatrix) * normal);
+  vPosition = (modelMatrix * vec4(position, 1.0)).xyz;
+  gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+}
