@@ -7,7 +7,11 @@ import earthFragmentShader from "./shaders/earthFragment.glsl?raw";
 import starsVertexShader from "./shaders/starsVertex.glsl?raw";
 import starsFragmentShader from "./shaders/starsFragment.glsl?raw";
 
-export const initThreeScene = (container: HTMLDivElement) => {
+export const initThreeScene = (
+  container: HTMLDivElement,
+  onProgress?: (progress: number) => void,
+  onComplete?: () => void
+) => {
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(
     75,
@@ -28,6 +32,14 @@ export const initThreeScene = (container: HTMLDivElement) => {
 
   // Speed multiplier for rotation
   let speedMultiplier = 1;
+
+  // LOD state variable
+  let usingHighRes = false;
+  let highResTexturesReady = false;
+
+  // High-res texture references (only daymap and nightmap for performance)
+  let earthTextureHD: THREE.Texture | null = null;
+  let earthNightTextureHD: THREE.Texture | null = null;
 
   // Create UI controls for rotation speed
   const speedControl = new SpeedControl({
@@ -89,18 +101,44 @@ export const initThreeScene = (container: HTMLDivElement) => {
   const stars = new THREE.Points(starsGeometry, starsMaterial);
   scene.add(stars);
 
+  // Progress tracking for all textures
+  // We need to be careful with the total count. 
+  // Let's see what LoadingManager reports as total.
+  let lowResTexturesLoaded = 0;
+  let highResTexturesLoaded = 0;
+  // We will determine total based on the first progress event from LoadingManager
+  let totalLowResTextures = 0;
+  const totalHighResTextures = 2;
+
+  const updateProgress = () => {
+    const total = totalLowResTextures + totalHighResTextures;
+    if (total === 0) return;
+    
+    const loadedTextures = lowResTexturesLoaded + highResTexturesLoaded;
+    const progress = Math.min((loadedTextures / total) * 100, 100); // Cap at 100%
+    
+    console.log(`Progress: ${progress.toFixed(1)}% (Low: ${lowResTexturesLoaded}/${totalLowResTextures}, High: ${highResTexturesLoaded}/${totalHighResTextures})`);
+    
+    if (onProgress) {
+      onProgress(progress);
+    }
+  };
+
   // Create loading manager for texture loading
   const loadingManager = new THREE.LoadingManager(
     // onLoad callback
     () => {
-      console.log("All textures loaded successfully");
+      console.log("All low-res textures loaded successfully");
     },
     // onProgress callback
-    (_url, itemsLoaded, itemsTotal) => {
-      const progress = (itemsLoaded / itemsTotal) * 100;
+    (url, itemsLoaded, itemsTotal) => {
+      lowResTexturesLoaded = itemsLoaded;
+      totalLowResTextures = itemsTotal; // Update total dynamically
+      
       console.log(
-        `Loading: ${progress.toFixed(0)}% (${itemsLoaded}/${itemsTotal})`
+        `Loading low-res: ${url} (${itemsLoaded}/${itemsTotal})`
       );
+      updateProgress();
     },
     // onError callback
     (url) => {
@@ -139,6 +177,44 @@ export const initThreeScene = (container: HTMLDivElement) => {
     "/assets/textures/2k_earth_clouds.jpg"
   );
   earthCloudAlpha.anisotropy = 16;
+
+  // Preload high-resolution textures in the background
+  console.log("Preloading high-resolution textures in background...");
+  let hdTexturesLoaded = 0;
+  const totalHDTextures = 2;
+
+  const onHDTextureLoad = (texture: THREE.Texture) => {
+    // Force texture upload to GPU to prevent stutter during swap
+    renderer.initTexture(texture);
+    
+    hdTexturesLoaded++;
+    highResTexturesLoaded = hdTexturesLoaded;
+    updateProgress();
+    
+    if (hdTexturesLoaded === totalHDTextures) {
+      highResTexturesReady = true;
+      console.log("All high-resolution textures ready for instant swapping");
+      
+      // Notify that loading is complete
+      if (onComplete) {
+        onComplete();
+      }
+    }
+  };
+
+  earthTextureHD = textureLoader.load("/assets/textures/8k_earth_daymap.jpg", (texture) => {
+    texture.anisotropy = 16;
+    texture.colorSpace = THREE.SRGBColorSpace;
+    console.log("8k daymap loaded and configured");
+    onHDTextureLoad(texture);
+  });
+
+  earthNightTextureHD = textureLoader.load("/assets/textures/8k_earth_nightmap.jpg", (texture) => {
+    texture.anisotropy = 16;
+    texture.colorSpace = THREE.SRGBColorSpace;
+    console.log("8k nightmap loaded and configured");
+    onHDTextureLoad(texture);
+  });
 
   // Earth configuration
   // Using 1 unit = 1000km for scale, Earth diameter is ~12.742km, so radius ~6.371 units scaled down
@@ -185,6 +261,34 @@ export const initThreeScene = (container: HTMLDivElement) => {
   });
   const clouds = new THREE.Mesh(cloudsGeometry, cloudsMaterial);
   scene.add(clouds);
+
+  // Function to swap to high-resolution textures (instant since preloaded)
+  const loadHighResTextures = () => {
+    if (usingHighRes || !highResTexturesReady) return;
+
+    console.log("Swapping to high-resolution textures...");
+
+    // Update Earth material uniforms (only day and night textures)
+    earthMaterial.uniforms.dayTexture.value = earthTextureHD;
+    earthMaterial.uniforms.nightTexture.value = earthNightTextureHD;
+    earthMaterial.uniformsNeedUpdate = true;
+
+    usingHighRes = true;
+  };
+
+  // Function to swap back to low-resolution textures
+  const loadLowResTextures = () => {
+    if (!usingHighRes) return;
+
+    console.log("Swapping to low-resolution textures...");
+
+    // Restore original 2k textures (only day and night)
+    earthMaterial.uniforms.dayTexture.value = earthTexture;
+    earthMaterial.uniforms.nightTexture.value = earthNightTexture;
+    earthMaterial.uniformsNeedUpdate = true;
+
+    usingHighRes = false;
+  };
 
   // Moon configuration
   // Moon diameter is ~3.474km, about 27% of Earth's diameter
@@ -237,6 +341,17 @@ export const initThreeScene = (container: HTMLDivElement) => {
 
   function animate() {
     controls.update();
+
+    // LOD: Check camera distance and swap textures
+    const cameraDistance = camera.position.distanceTo(earth.position);
+    const highResThreshold = 4; // Switch to high-res when closer than 4 units
+    const lowResThreshold = 4; // Switch back to low-res when farther than 4 units (hysteresis)
+
+    if (cameraDistance < highResThreshold && !usingHighRes) {
+      loadHighResTextures();
+    } else if (cameraDistance > lowResThreshold && usingHighRes) {
+      loadLowResTextures();
+    }
 
     // Calculate rotation speeds with multiplier
     const earthRotationSpeed = baseEarthRotationSpeed * speedMultiplier;
@@ -292,6 +407,10 @@ export const initThreeScene = (container: HTMLDivElement) => {
     earthCloudAlpha.dispose();
     moonTexture.dispose();
     moonBumpMap.dispose();
+
+    // Dispose high-res textures if loaded
+    if (earthTextureHD) earthTextureHD.dispose();
+    if (earthNightTextureHD) earthNightTextureHD.dispose();
 
     // Dispose renderer and controls
     renderer.dispose();
