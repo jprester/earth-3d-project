@@ -1,115 +1,94 @@
-# Three.js TypeScript Starter
+# 🌍 Earth 3D Visualization
 
-A modern starter template for building 3D web applications using Three.js, React, TypeScript, and Vite. This project provides a solid foundation for creating interactive 3D experiences with a clean development workflow.
+A stunning, interactive 3D visualization of planet Earth built with **React**, **Three.js**, and **TypeScript**. This project features a realistic rendering of Earth with day/night cycles, atmospheric effects, a dynamic cloud layer, and an orbiting Moon.
 
-## Features
+## ✨ Features
 
-- **Three.js Integration** - Ready-to-use 3D rendering engine setup
-- **Asset Management** - Built-in utilities for loading textures and 3D models
-- **TypeScript Support** - Full type safety and modern JavaScript features
-- **React Components** - Component-based structure for UI elements
-- **Fast Development** - Powered by Vite for quick HMR (Hot Module Replacement)
-- **Responsive Design** - Automatically adjusts to window resizing
-- **Code Quality** - ESLint configuration for maintaining clean code
+*   **High-Fidelity Earth Rendering**:
+    *   **Dynamic LOD (Level of Detail)**: Automatically switches between 2k and 8k textures based on zoom level for optimal performance and visual fidelity.
+    *   **Day/Night Cycle**: Custom shaders blend day and night textures based on the sun's position.
+    *   **Atmosphere**: Realistic atmospheric glow and cloud layers.
+    *   **Texture Maps**: Utilizes normal and specular maps for detailed terrain and water reflection.
+*   **Orbiting Moon**: A 3D Moon model that orbits the Earth, tidally locked and scaled relative to the Earth.
+*   **Immersive Environment**: Procedurally generated starfield background.
+*   **Interactive Controls**:
+    *   **Orbit Controls**: Zoom, pan, and rotate around the Earth.
+    *   **Speed Control**: Adjust the simulation speed of the Earth's rotation and Moon's orbit.
+*   **Smooth Loading**: Dedicated loading screen with progress tracking for texture assets.
 
-## Prerequisites
+## 🛠️ Tech Stack
 
-- Node.js (v16 or higher)
-- npm or yarn
+*   **Framework**: [React](https://react.dev/)
+*   **Build Tool**: [Vite](https://vitejs.dev/)
+*   **Language**: [TypeScript](https://www.typescriptlang.org/)
+*   **3D Library**: [Three.js](https://threejs.org/)
+*   **Shaders**: GLSL (OpenGL Shading Language)
 
-## Getting Started
+## 🚀 Getting Started
 
-1. Clone this repository
+### Prerequisites
 
-```bash
-git clone https://github.com/your-username/three-js-ts-starter.git
-cd three-js-ts-starter
-```
+Ensure you have **Node.js** installed on your machine.
 
-2. Install dependencies
+### Installation
 
-```bash
-npm install
-# or
-yarn
-```
+1.  Clone the repository:
+    ```bash
+    git clone <repository-url>
+    cd earth-3d-project
+    ```
 
-3. Start the development server
+2.  Install dependencies:
+    ```bash
+    npm install
+    ```
+
+### Running Locally
+
+Start the development server:
 
 ```bash
 npm run dev
-# or
-yarn dev
 ```
 
-4. Open your browser and navigate to `http://localhost:5173`
+Open your browser and navigate to `http://localhost:5173` (or the URL provided in the terminal).
 
-## Available Scripts
+### Building for Production
 
-- `npm run dev` - Start development server
-- `npm run build` - Type check and build for production
-- `npm run lint` - Run ESLint
-- `npm run preview` - Preview production build
+To create a production build:
 
-## Project Structure
-
-```
-three-js-ts-starter/
-├── public/                  # Static assets
-│   └── assets/              # 3D models, textures, etc.
-├── src/                     # Source code
-│   ├── managers/            # Service managers (assetManager, etc.)
-│   ├── exported_gltfs/      # GLTF models
-│   ├── App.tsx              # Main React component
-│   ├── threeScene.ts        # Three.js scene setup
-│   └── main.tsx             # Entry point
-├── .gitignore               # Git ignore file
-├── eslint.config.js         # ESLint configuration
-├── index.html               # HTML entry point
-├── package.json             # Dependencies and scripts
-├── tsconfig.json            # TypeScript configuration
-└── vite.config.ts           # Vite configuration
+```bash
+npm run build
 ```
 
-## Key Components
+To preview the production build locally:
 
-### `threeScene.ts`
+```bash
+npm run preview
+```
 
-Sets up the Three.js scene, camera, renderer, lights, and animation loop.
+## 🎮 Controls
 
-### `managers/assetManager.ts`
+*   **Left Click + Drag**: Rotate the camera around the Earth.
+*   **Right Click + Drag**: Pan the camera.
+*   **Scroll Wheel**: Zoom in and out (triggers LOD system).
+*   **UI Slider**: Adjust the rotation speed multiplier.
 
-Handles loading of textures and 3D models with proper async patterns.
+## 📁 Project Structure
 
-### `App.tsx`
+```
+src/
+├── components/      # React UI components (LoadingScreen, SpeedControl)
+├── shaders/         # GLSL shader files for Earth and Stars
+├── threeScene.ts    # Main Three.js scene logic (Earth, Moon, Lights, etc.)
+├── App.tsx          # Main React application component
+└── main.tsx         # Entry point
+```
 
-Main React component that initializes and contains the Three.js canvas.
+## 🤝 Contributing
 
-## Customizing the Scene
+Contributions are welcome! Feel free to open issues or submit pull requests to improve the project.
 
-The project comes with a basic 3D scene including:
+## 📄 License
 
-- A blue cube (created in code)
-- Asset loading for GLTF models
-- Orbit controls for camera manipulation
-- Proper lighting setup
-- Window resize handling
-
-To customize the scene, modify the `threeScene.ts` file and adjust the camera, lighting, geometries, materials, and animation logic as needed.
-
-## Code Style Guidelines
-
-- **TypeScript**: Use strict mode, explicit return types on functions
-- **Imports**: Group imports (React, third-party, internal)
-- **Formatting**: Use consistent indentation (2 spaces)
-- **Components**: Use functional components with React hooks
-- **Error Handling**: Use try/catch blocks for async operations
-- **Types**: Avoid `any` type except for prototyping
-
-## License
-
-[MIT](LICENSE)
-
-## Contributing
-
-Contributions are welcome! Feel free to open issues or submit pull requests.
+This project is licensed under the MIT License.
