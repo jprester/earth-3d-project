@@ -2,28 +2,28 @@
  * Marker renderer for strategic location markers on the globe
  */
 
-import * as THREE from 'three';
+import * as THREE from "three";
 import type {
   LocationState,
   LocationType,
   LocationStatus,
   Coordinates,
-} from '../types';
-import type { CameraController } from './CameraController';
-import { latLngToVector3, isPointVisibleFromCamera } from '../world/GeoUtils';
+} from "../types";
+import type { CameraController } from "./CameraController";
+import { latLngToVector3, isPointVisibleFromCamera } from "../world/GeoUtils";
 
 // Color palette for different location types
 const TYPE_COLORS: Record<LocationType, number> = {
-  capital: 0xffd700,        // Gold
-  major_city: 0xffffff,     // White
-  city: 0xcccccc,           // Light gray
-  military_base: 0xff4444,  // Red
-  nuclear_silo: 0xff0000,   // Bright red
-  naval_base: 0x4444ff,     // Blue
-  air_base: 0x44aaff,       // Light blue
+  capital: 0xffd700, // Gold
+  major_city: 0xffffff, // White
+  city: 0xcccccc, // Light gray
+  military_base: 0xff4444, // Red
+  nuclear_silo: 0xff0000, // Bright red
+  naval_base: 0x4444ff, // Blue
+  air_base: 0x44aaff, // Light blue
   command_center: 0xff8800, // Orange
-  power_plant: 0x00ff88,    // Green
-  comm_hub: 0x00ffff,       // Cyan
+  power_plant: 0x00ff88, // Green
+  comm_hub: 0x00ffff, // Cyan
 };
 
 // Status modifiers for marker appearance
@@ -99,7 +99,7 @@ export class MarkerRenderer {
 
     this.markers = new Map();
     this.markerGroup = new THREE.Group();
-    this.markerGroup.name = 'MarkerGroup';
+    this.markerGroup.name = "MarkerGroup";
     // Add marker group as child of Earth mesh so markers rotate with the globe
     this.earthMesh.add(this.markerGroup);
 
@@ -115,8 +115,8 @@ export class MarkerRenderer {
     this.mouseMoveHandler = this.handleMouseMove.bind(this);
     this.clickHandler = this.handleClick.bind(this);
 
-    this.domElement.addEventListener('mousemove', this.mouseMoveHandler);
-    this.domElement.addEventListener('click', this.clickHandler);
+    this.domElement.addEventListener("mousemove", this.mouseMoveHandler);
+    this.domElement.addEventListener("click", this.clickHandler);
   }
 
   /**
@@ -124,8 +124,16 @@ export class MarkerRenderer {
    */
   private generateTextures(): void {
     const types: LocationType[] = [
-      'capital', 'major_city', 'city', 'military_base', 'nuclear_silo',
-      'naval_base', 'air_base', 'command_center', 'power_plant', 'comm_hub',
+      "capital",
+      "major_city",
+      "city",
+      "military_base",
+      "nuclear_silo",
+      "naval_base",
+      "air_base",
+      "command_center",
+      "power_plant",
+      "comm_hub",
     ];
 
     for (const type of types) {
@@ -139,15 +147,18 @@ export class MarkerRenderer {
   /**
    * Create a canvas texture for a marker
    */
-  private createMarkerTexture(type: LocationType, highlighted: boolean): THREE.Texture {
+  private createMarkerTexture(
+    type: LocationType,
+    highlighted: boolean,
+  ): THREE.Texture {
     const size = 64;
-    const canvas = document.createElement('canvas');
+    const canvas = document.createElement("canvas");
     canvas.width = size;
     canvas.height = size;
-    const ctx = canvas.getContext('2d')!;
+    const ctx = canvas.getContext("2d")!;
 
     const color = TYPE_COLORS[type];
-    const colorStr = `#${color.toString(16).padStart(6, '0')}`;
+    const colorStr = `#${color.toString(16).padStart(6, "0")}`;
 
     // Clear canvas
     ctx.clearRect(0, 0, size, size);
@@ -155,12 +166,16 @@ export class MarkerRenderer {
     // Draw outer glow if highlighted
     if (highlighted) {
       const gradient = ctx.createRadialGradient(
-        size / 2, size / 2, 0,
-        size / 2, size / 2, size / 2
+        size / 2,
+        size / 2,
+        0,
+        size / 2,
+        size / 2,
+        size / 2,
       );
       gradient.addColorStop(0, colorStr);
       gradient.addColorStop(0.4, colorStr);
-      gradient.addColorStop(1, 'transparent');
+      gradient.addColorStop(1, "transparent");
       ctx.fillStyle = gradient;
       ctx.fillRect(0, 0, size, size);
     }
@@ -172,15 +187,19 @@ export class MarkerRenderer {
     ctx.fill();
 
     // Draw border
-    ctx.strokeStyle = highlighted ? '#ffffff' : 'rgba(255, 255, 255, 0.7)';
+    ctx.strokeStyle = highlighted ? "#ffffff" : "rgba(255, 255, 255, 0.7)";
     ctx.lineWidth = highlighted ? 3 : 2;
     ctx.stroke();
 
     // Draw inner dot for important locations
-    if (type === 'capital' || type === 'nuclear_silo' || type === 'command_center') {
+    if (
+      type === "capital" ||
+      type === "nuclear_silo" ||
+      type === "command_center"
+    ) {
       ctx.beginPath();
       ctx.arc(size / 2, size / 2, 4, 0, Math.PI * 2);
-      ctx.fillStyle = '#000000';
+      ctx.fillStyle = "#000000";
       ctx.fill();
     }
 
@@ -194,16 +213,16 @@ export class MarkerRenderer {
    */
   private getBaseScale(type: LocationType): number {
     switch (type) {
-      case 'capital':
+      case "capital":
         return 0.15;
-      case 'major_city':
+      case "major_city":
         return 0.12;
-      case 'nuclear_silo':
-      case 'command_center':
+      case "nuclear_silo":
+      case "command_center":
         return 0.13;
-      case 'military_base':
-      case 'naval_base':
-      case 'air_base':
+      case "military_base":
+      case "naval_base":
+      case "air_base":
         return 0.11;
       default:
         return 0.1;
@@ -228,7 +247,11 @@ export class MarkerRenderer {
     sprite.name = `marker-${location.id}`;
 
     // Position on globe surface with slight altitude
-    const position = latLngToVector3(location.coordinates, this.earthRadius, 0.02);
+    const position = latLngToVector3(
+      location.coordinates,
+      this.earthRadius,
+      0.02,
+    );
     sprite.position.copy(position);
 
     const baseScale = this.getBaseScale(location.type);
@@ -368,7 +391,7 @@ export class MarkerRenderer {
         marker.sprite.position,
         this.camera,
         this.earthCenter,
-        this.earthRadius
+        this.earthRadius,
       );
 
       const material = marker.sprite.material as THREE.SpriteMaterial;
@@ -395,7 +418,7 @@ export class MarkerRenderer {
 
     // Get all sprites from the marker group
     const sprites = this.markerGroup.children.filter(
-      (child) => child instanceof THREE.Sprite
+      (child) => child instanceof THREE.Sprite,
     );
 
     const intersects = this.raycaster.intersectObjects(sprites);
@@ -405,7 +428,8 @@ export class MarkerRenderer {
     if (intersects.length > 0) {
       // Find the first visible marker
       for (const intersect of intersects) {
-        const material = (intersect.object as THREE.Sprite).material as THREE.SpriteMaterial;
+        const material = (intersect.object as THREE.Sprite)
+          .material as THREE.SpriteMaterial;
         if (material.opacity > 0.2) {
           newHoveredId = intersect.object.userData.locationId;
           break;
@@ -423,9 +447,9 @@ export class MarkerRenderer {
       // Add highlight to new
       if (newHoveredId) {
         this.setMarkerHighlight(newHoveredId, true);
-        this.domElement.style.cursor = 'pointer';
+        this.domElement.style.cursor = "pointer";
       } else {
-        this.domElement.style.cursor = 'default';
+        this.domElement.style.cursor = "default";
       }
 
       this.hoveredMarkerId = newHoveredId;
@@ -444,7 +468,7 @@ export class MarkerRenderer {
     this.raycaster.setFromCamera(this.mouse, this.camera);
 
     const sprites = this.markerGroup.children.filter(
-      (child) => child instanceof THREE.Sprite
+      (child) => child instanceof THREE.Sprite,
     );
 
     const intersects = this.raycaster.intersectObjects(sprites);
@@ -452,7 +476,8 @@ export class MarkerRenderer {
     if (intersects.length > 0) {
       // Find the first visible marker
       for (const intersect of intersects) {
-        const material = (intersect.object as THREE.Sprite).material as THREE.SpriteMaterial;
+        const material = (intersect.object as THREE.Sprite)
+          .material as THREE.SpriteMaterial;
         if (material.opacity > 0.2) {
           const locationId = intersect.object.userData.locationId;
           const marker = this.markers.get(locationId);
@@ -505,8 +530,8 @@ export class MarkerRenderer {
    * Dispose resources
    */
   dispose(): void {
-    this.domElement.removeEventListener('mousemove', this.mouseMoveHandler);
-    this.domElement.removeEventListener('click', this.clickHandler);
+    this.domElement.removeEventListener("mousemove", this.mouseMoveHandler);
+    this.domElement.removeEventListener("click", this.clickHandler);
 
     // Dispose all markers
     this.clearMarkers();
