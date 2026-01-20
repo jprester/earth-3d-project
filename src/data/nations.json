@@ -1,0 +1,124 @@
+{
+  "nations": [
+    {
+      "id": "usa",
+      "name": "United States",
+      "isNuclear": true,
+      "initialMilitaryStrength": 100
+    },
+    {
+      "id": "russia",
+      "name": "Russia",
+      "isNuclear": true,
+      "initialMilitaryStrength": 85
+    },
+    {
+      "id": "china",
+      "name": "China",
+      "isNuclear": true,
+      "initialMilitaryStrength": 90
+    },
+    {
+      "id": "uk",
+      "name": "United Kingdom",
+      "isNuclear": true,
+      "initialMilitaryStrength": 55
+    },
+    {
+      "id": "france",
+      "name": "France",
+      "isNuclear": true,
+      "initialMilitaryStrength": 55
+    },
+    {
+      "id": "india",
+      "name": "India",
+      "isNuclear": true,
+      "initialMilitaryStrength": 65
+    },
+    {
+      "id": "pakistan",
+      "name": "Pakistan",
+      "isNuclear": true,
+      "initialMilitaryStrength": 45
+    },
+    {
+      "id": "israel",
+      "name": "Israel",
+      "isNuclear": true,
+      "initialMilitaryStrength": 50
+    },
+    {
+      "id": "northkorea",
+      "name": "North Korea",
+      "isNuclear": true,
+      "initialMilitaryStrength": 35
+    },
+    {
+      "id": "germany",
+      "name": "Germany",
+      "isNuclear": false,
+      "initialMilitaryStrength": 45
+    },
+    {
+      "id": "japan",
+      "name": "Japan",
+      "isNuclear": false,
+      "initialMilitaryStrength": 50
+    },
+    {
+      "id": "southkorea",
+      "name": "South Korea",
+      "isNuclear": false,
+      "initialMilitaryStrength": 45
+    },
+    {
+      "id": "turkey",
+      "name": "Turkey",
+      "isNuclear": false,
+      "initialMilitaryStrength": 40
+    },
+    {
+      "id": "iran",
+      "name": "Iran",
+      "isNuclear": false,
+      "initialMilitaryStrength": 35
+    },
+    {
+      "id": "egypt",
+      "name": "Egypt",
+      "isNuclear": false,
+      "initialMilitaryStrength": 35
+    },
+    {
+      "id": "brazil",
+      "name": "Brazil",
+      "isNuclear": false,
+      "initialMilitaryStrength": 40
+    },
+    {
+      "id": "australia",
+      "name": "Australia",
+      "isNuclear": false,
+      "initialMilitaryStrength": 35
+    },
+    {
+      "id": "canada",
+      "name": "Canada",
+      "isNuclear": false,
+      "initialMilitaryStrength": 30
+    },
+    {
+      "id": "italy",
+      "name": "Italy",
+      "isNuclear": false,
+      "initialMilitaryStrength": 35
+    },
+    {
+      "id": "southafrica",
+      "name": "South Africa",
+      "isNuclear": false,
+      "initialMilitaryStrength": 25
+    }
+  ]
+}

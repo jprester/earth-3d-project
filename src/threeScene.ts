@@ -1,34 +1,41 @@
 import * as THREE from "three";
 
-import { OrbitControls } from "three/examples/jsm/controls/OrbitControls.js";
 import { SpeedControl } from "./components/SpeedControl";
+import { Tooltip } from "./components/Tooltip";
+import { InfoPanel } from "./components/InfoPanel";
+import { OverlayToggle } from "./components/OverlayToggle";
+import { CameraController } from "./rendering/CameraController";
+import { MarkerRenderer } from "./rendering/MarkerRenderer";
+import { WorldData } from "./world/WorldData";
+import { loadWorldData } from "./world/WorldDataLoader";
+import { eventBus } from "./core/EventBus";
+import { EARTH_RADIUS } from "./world/GeoUtils";
+
 import earthVertexShader from "./shaders/earthVertex.glsl?raw";
 import earthFragmentShader from "./shaders/earthFragment.glsl?raw";
 import starsVertexShader from "./shaders/starsVertex.glsl?raw";
 import starsFragmentShader from "./shaders/starsFragment.glsl?raw";
 
-export const initThreeScene = (
+export const initThreeScene = async (
   container: HTMLDivElement,
   onProgress?: (progress: number) => void,
   onComplete?: () => void
-) => {
+): Promise<() => void> => {
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(
-    75,
+    45, // Start with orbital FOV
     window.innerWidth / window.innerHeight,
     0.1,
     1000
   );
 
-  const renderer = new THREE.WebGLRenderer();
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
   renderer.toneMappingExposure = 1.2;
   renderer.setSize(window.innerWidth, window.innerHeight);
-  renderer.setAnimationLoop(animate);
+  renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   container.appendChild(renderer.domElement);
-
-  const controls = new OrbitControls(camera, renderer.domElement);
 
   // Speed multiplier for rotation
   let speedMultiplier = 1;
@@ -102,23 +109,22 @@ export const initThreeScene = (
   scene.add(stars);
 
   // Progress tracking for all textures
-  // We need to be careful with the total count. 
-  // Let's see what LoadingManager reports as total.
   let lowResTexturesLoaded = 0;
   let highResTexturesLoaded = 0;
-  // We will determine total based on the first progress event from LoadingManager
   let totalLowResTextures = 0;
   const totalHighResTextures = 2;
 
   const updateProgress = () => {
     const total = totalLowResTextures + totalHighResTextures;
     if (total === 0) return;
-    
+
     const loadedTextures = lowResTexturesLoaded + highResTexturesLoaded;
-    const progress = Math.min((loadedTextures / total) * 100, 100); // Cap at 100%
-    
-    console.log(`Progress: ${progress.toFixed(1)}% (Low: ${lowResTexturesLoaded}/${totalLowResTextures}, High: ${highResTexturesLoaded}/${totalHighResTextures})`);
-    
+    const progress = Math.min((loadedTextures / total) * 100, 100);
+
+    console.log(
+      `Progress: ${progress.toFixed(1)}% (Low: ${lowResTexturesLoaded}/${totalLowResTextures}, High: ${highResTexturesLoaded}/${totalHighResTextures})`
+    );
+
     if (onProgress) {
       onProgress(progress);
     }
@@ -133,11 +139,9 @@ export const initThreeScene = (
     // onProgress callback
     (url, itemsLoaded, itemsTotal) => {
       lowResTexturesLoaded = itemsLoaded;
-      totalLowResTextures = itemsTotal; // Update total dynamically
-      
-      console.log(
-        `Loading low-res: ${url} (${itemsLoaded}/${itemsTotal})`
-      );
+      totalLowResTextures = itemsTotal;
+
+      console.log(`Loading low-res: ${url} (${itemsLoaded}/${itemsTotal})`);
       updateProgress();
     },
     // onError callback
@@ -186,15 +190,15 @@ export const initThreeScene = (
   const onHDTextureLoad = (texture: THREE.Texture) => {
     // Force texture upload to GPU to prevent stutter during swap
     renderer.initTexture(texture);
-    
+
     hdTexturesLoaded++;
     highResTexturesLoaded = hdTexturesLoaded;
     updateProgress();
-    
+
     if (hdTexturesLoaded === totalHDTextures) {
       highResTexturesReady = true;
       console.log("All high-resolution textures ready for instant swapping");
-      
+
       // Notify that loading is complete
       if (onComplete) {
         onComplete();
@@ -202,23 +206,28 @@ export const initThreeScene = (
     }
   };
 
-  earthTextureHD = textureLoader.load("/assets/textures/8k_earth_daymap.jpg", (texture) => {
-    texture.anisotropy = 16;
-    texture.colorSpace = THREE.SRGBColorSpace;
-    console.log("8k daymap loaded and configured");
-    onHDTextureLoad(texture);
-  });
+  earthTextureHD = textureLoader.load(
+    "/assets/textures/8k_earth_daymap.jpg",
+    (texture) => {
+      texture.anisotropy = 16;
+      texture.colorSpace = THREE.SRGBColorSpace;
+      console.log("8k daymap loaded and configured");
+      onHDTextureLoad(texture);
+    }
+  );
 
-  earthNightTextureHD = textureLoader.load("/assets/textures/8k_earth_nightmap.jpg", (texture) => {
-    texture.anisotropy = 16;
-    texture.colorSpace = THREE.SRGBColorSpace;
-    console.log("8k nightmap loaded and configured");
-    onHDTextureLoad(texture);
-  });
+  earthNightTextureHD = textureLoader.load(
+    "/assets/textures/8k_earth_nightmap.jpg",
+    (texture) => {
+      texture.anisotropy = 16;
+      texture.colorSpace = THREE.SRGBColorSpace;
+      console.log("8k nightmap loaded and configured");
+      onHDTextureLoad(texture);
+    }
+  );
 
   // Earth configuration
-  // Using 1 unit = 1000km for scale, Earth diameter is ~12.742km, so radius ~6.371 units scaled down
-  const earthRadius = 2;
+  const earthRadius = EARTH_RADIUS;
   const earthGeometry = new THREE.SphereGeometry(earthRadius, 64, 64);
 
   // Create custom shader material for day/night cycle
@@ -245,7 +254,6 @@ export const initThreeScene = (
   scene.add(earth);
 
   // Earth clouds layer
-  // Clouds sit slightly above Earth's surface (atmosphere is ~10km thick for troposphere)
   const cloudRadius = earthRadius * 1.01;
   const cloudsGeometry = new THREE.SphereGeometry(cloudRadius, 64, 64);
   const cloudsMaterial = new THREE.MeshStandardMaterial({
@@ -268,7 +276,6 @@ export const initThreeScene = (
 
     console.log("Swapping to high-resolution textures...");
 
-    // Update Earth material uniforms (only day and night textures)
     earthMaterial.uniforms.dayTexture.value = earthTextureHD;
     earthMaterial.uniforms.nightTexture.value = earthNightTextureHD;
     earthMaterial.uniformsNeedUpdate = true;
@@ -282,7 +289,6 @@ export const initThreeScene = (
 
     console.log("Swapping to low-resolution textures...");
 
-    // Restore original 2k textures (only day and night)
     earthMaterial.uniforms.dayTexture.value = earthTexture;
     earthMaterial.uniforms.nightTexture.value = earthNightTexture;
     earthMaterial.uniformsNeedUpdate = true;
@@ -291,7 +297,6 @@ export const initThreeScene = (
   };
 
   // Moon configuration
-  // Moon diameter is ~3.474km, about 27% of Earth's diameter
   const moonRadius = earthRadius * 0.27;
   const moonGeometry = new THREE.SphereGeometry(moonRadius, 32, 32);
   const moonMaterial = new THREE.MeshStandardMaterial({
@@ -303,14 +308,109 @@ export const initThreeScene = (
   });
   const moon = new THREE.Mesh(moonGeometry, moonMaterial);
 
-  // Moon orbits at average distance of ~384,400km from Earth
-  // Using our scale, that's about 30 Earth diameters
   const moonOrbitRadius = earthRadius * 8;
   moon.position.x = moonOrbitRadius;
   scene.add(moon);
 
-  camera.position.z = 25;
+  // Set initial camera position (orbital view)
+  camera.position.z = 15;
   camera.position.y = 5;
+
+  // Create CameraController (replaces raw OrbitControls)
+  const cameraController = new CameraController({
+    camera,
+    domElement: renderer.domElement,
+    earthMesh: earth,
+    earthRadius,
+    onZoomChange: (level, distance) => {
+      eventBus.emit("camera:zoom", { level, distance });
+      console.log(`Camera zoom: ${level} (${distance.toFixed(2)} units)`);
+    },
+  });
+
+  // Load world data
+  console.log("Loading world data...");
+  const { locations, nations } = await loadWorldData();
+  const worldData = new WorldData();
+  worldData.initialize(locations, nations);
+  console.log(
+    `Loaded ${locations.length} locations and ${nations.length} nations`
+  );
+
+  // Create MarkerRenderer
+  const markerRenderer = new MarkerRenderer({
+    scene,
+    camera,
+    cameraController,
+    earthMesh: earth,
+    earthRadius,
+    domElement: renderer.domElement,
+  });
+
+  // Add markers for all locations
+  markerRenderer.addMarkers(worldData.getAllLocations());
+  console.log(`Added ${worldData.getAllLocations().length} markers to globe`);
+
+  // Create UI components
+  const tooltip = new Tooltip();
+  tooltip.appendTo(container);
+
+  const infoPanel = new InfoPanel({
+    onClose: () => {
+      markerRenderer.selectMarker(null);
+    },
+    getNation: (nationId) => worldData.getNation(nationId),
+  });
+  infoPanel.appendTo(container);
+
+  const overlayToggle = new OverlayToggle({
+    onChange: (visibleTypes) => {
+      markerRenderer.setVisibleTypes(visibleTypes);
+    },
+  });
+  overlayToggle.appendTo(container);
+
+  // Track mouse position for tooltip
+  let mouseX = 0;
+  let mouseY = 0;
+  const handleMouseMove = (e: MouseEvent) => {
+    mouseX = e.clientX;
+    mouseY = e.clientY;
+    tooltip.updatePosition(mouseX, mouseY);
+  };
+  renderer.domElement.addEventListener("mousemove", handleMouseMove);
+
+  // Set up marker event callbacks
+  markerRenderer.setCallbacks({
+    onHover: (locationId) => {
+      eventBus.emit("marker:hover", { locationId });
+      if (locationId) {
+        const location = worldData.getLocation(locationId);
+        if (location) {
+          tooltip.show(location, mouseX, mouseY);
+        }
+      } else {
+        tooltip.hide();
+      }
+    },
+    onSelect: (locationId) => {
+      eventBus.emit("marker:select", { locationId });
+      if (locationId) {
+        const location = worldData.getLocation(locationId);
+        if (location) {
+          // Show info panel
+          infoPanel.show(location);
+          // Pan camera to selected location (without changing zoom)
+          cameraController.panToLocation(location.coordinates);
+        }
+      } else {
+        infoPanel.hide();
+      }
+    },
+    onClick: (locationId, coordinates) => {
+      eventBus.emit("location:click", { locationId, coordinates });
+    },
+  });
 
   // Handle window resize
   const handleResize = () => {
@@ -320,7 +420,7 @@ export const initThreeScene = (
   };
   window.addEventListener("resize", handleResize);
 
-  // atmosphere
+  // Atmosphere
   const atmosphereMaterial = new THREE.MeshBasicMaterial({
     side: THREE.BackSide,
     opacity: 0.1,
@@ -333,19 +433,21 @@ export const initThreeScene = (
   scene.add(atmosphere);
 
   // Realistic rotation speeds
-  // Earth completes one rotation (2π radians) every 24 hours in real-time
-  // At 60fps: 24 hours = 24 * 60 * 60 seconds = 86,400 seconds = 5,184,000 frames
-  const baseEarthRotationSpeed = (2 * Math.PI) / (24 * 60 * 60 * 60); // radians per frame at 60fps
+  const baseEarthRotationSpeed = (2 * Math.PI) / (24 * 60 * 60 * 60);
 
   let moonOrbitAngle = 0;
 
   function animate() {
-    controls.update();
+    // Update camera controller
+    cameraController.update();
+
+    // Update marker renderer
+    markerRenderer.update();
 
     // LOD: Check camera distance and swap textures
     const cameraDistance = camera.position.distanceTo(earth.position);
-    const highResThreshold = 4; // Switch to high-res when closer than 4 units
-    const lowResThreshold = 4; // Switch back to low-res when farther than 4 units (hysteresis)
+    const highResThreshold = 4;
+    const lowResThreshold = 4;
 
     if (cameraDistance < highResThreshold && !usingHighRes) {
       loadHighResTextures();
@@ -355,9 +457,9 @@ export const initThreeScene = (
 
     // Calculate rotation speeds with multiplier
     const earthRotationSpeed = baseEarthRotationSpeed * speedMultiplier;
-    const cloudRotationSpeed = earthRotationSpeed * 1.5; // Clouds rotate slightly faster
-    const moonOrbitSpeed = earthRotationSpeed / 27.3; // Moon orbits in 27.3 days
-    const moonRotationSpeed = moonOrbitSpeed; // Tidally locked
+    const cloudRotationSpeed = earthRotationSpeed * 1.5;
+    const moonOrbitSpeed = earthRotationSpeed / 27.3;
+    const moonRotationSpeed = moonOrbitSpeed;
 
     // Rotate Earth on its axis
     earth.rotation.y += earthRotationSpeed;
@@ -376,9 +478,27 @@ export const initThreeScene = (
     renderer.render(scene, camera);
   }
 
+  // Start animation loop
+  renderer.setAnimationLoop(animate);
+
+  // Return cleanup function
   return () => {
+    // Stop animation loop
+    renderer.setAnimationLoop(null);
+
     // Remove event listeners
     window.removeEventListener("resize", handleResize);
+    renderer.domElement.removeEventListener("mousemove", handleMouseMove);
+
+    // Dispose new systems
+    cameraController.dispose();
+    markerRenderer.dispose();
+    eventBus.clear();
+
+    // Remove UI components
+    tooltip.remove();
+    infoPanel.remove();
+    overlayToggle.remove();
 
     // Remove DOM elements
     if (container.contains(renderer.domElement)) {
@@ -412,8 +532,7 @@ export const initThreeScene = (
     if (earthTextureHD) earthTextureHD.dispose();
     if (earthNightTextureHD) earthNightTextureHD.dispose();
 
-    // Dispose renderer and controls
+    // Dispose renderer
     renderer.dispose();
-    controls.dispose();
   };
 };

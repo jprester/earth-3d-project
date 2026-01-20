@@ -1,0 +1,435 @@
+{
+  "locations": [
+    {
+      "id": "usa-washington",
+      "name": "Washington D.C.",
+      "type": "capital",
+      "coordinates": { "lat": 38.9072, "lng": -77.0369 },
+      "nation": "usa",
+      "population": 705749,
+      "defenseRating": 9
+    },
+    {
+      "id": "russia-moscow",
+      "name": "Moscow",
+      "type": "capital",
+      "coordinates": { "lat": 55.7558, "lng": 37.6173 },
+      "nation": "russia",
+      "population": 12500000,
+      "defenseRating": 9
+    },
+    {
+      "id": "china-beijing",
+      "name": "Beijing",
+      "type": "capital",
+      "coordinates": { "lat": 39.9042, "lng": 116.4074 },
+      "nation": "china",
+      "population": 21540000,
+      "defenseRating": 9
+    },
+    {
+      "id": "uk-london",
+      "name": "London",
+      "type": "capital",
+      "coordinates": { "lat": 51.5074, "lng": -0.1278 },
+      "nation": "uk",
+      "population": 8982000,
+      "defenseRating": 8
+    },
+    {
+      "id": "france-paris",
+      "name": "Paris",
+      "type": "capital",
+      "coordinates": { "lat": 48.8566, "lng": 2.3522 },
+      "nation": "france",
+      "population": 2161000,
+      "defenseRating": 8
+    },
+    {
+      "id": "germany-berlin",
+      "name": "Berlin",
+      "type": "capital",
+      "coordinates": { "lat": 52.5200, "lng": 13.4050 },
+      "nation": "germany",
+      "population": 3645000,
+      "defenseRating": 7
+    },
+    {
+      "id": "japan-tokyo",
+      "name": "Tokyo",
+      "type": "capital",
+      "coordinates": { "lat": 35.6762, "lng": 139.6503 },
+      "nation": "japan",
+      "population": 13960000,
+      "defenseRating": 7
+    },
+    {
+      "id": "india-delhi",
+      "name": "New Delhi",
+      "type": "capital",
+      "coordinates": { "lat": 28.6139, "lng": 77.2090 },
+      "nation": "india",
+      "population": 32941000,
+      "defenseRating": 8
+    },
+    {
+      "id": "brazil-brasilia",
+      "name": "Brasília",
+      "type": "capital",
+      "coordinates": { "lat": -15.8267, "lng": -47.9218 },
+      "nation": "brazil",
+      "population": 3055000,
+      "defenseRating": 6
+    },
+    {
+      "id": "australia-canberra",
+      "name": "Canberra",
+      "type": "capital",
+      "coordinates": { "lat": -35.2809, "lng": 149.1300 },
+      "nation": "australia",
+      "population": 462000,
+      "defenseRating": 6
+    },
+    {
+      "id": "southkorea-seoul",
+      "name": "Seoul",
+      "type": "capital",
+      "coordinates": { "lat": 37.5665, "lng": 126.9780 },
+      "nation": "southkorea",
+      "population": 9776000,
+      "defenseRating": 8
+    },
+    {
+      "id": "israel-jerusalem",
+      "name": "Jerusalem",
+      "type": "capital",
+      "coordinates": { "lat": 31.7683, "lng": 35.2137 },
+      "nation": "israel",
+      "population": 936000,
+      "defenseRating": 9
+    },
+    {
+      "id": "pakistan-islamabad",
+      "name": "Islamabad",
+      "type": "capital",
+      "coordinates": { "lat": 33.6844, "lng": 73.0479 },
+      "nation": "pakistan",
+      "population": 1150000,
+      "defenseRating": 8
+    },
+    {
+      "id": "iran-tehran",
+      "name": "Tehran",
+      "type": "capital",
+      "coordinates": { "lat": 35.6892, "lng": 51.3890 },
+      "nation": "iran",
+      "population": 9000000,
+      "defenseRating": 7
+    },
+    {
+      "id": "northkorea-pyongyang",
+      "name": "Pyongyang",
+      "type": "capital",
+      "coordinates": { "lat": 39.0392, "lng": 125.7625 },
+      "nation": "northkorea",
+      "population": 3255000,
+      "defenseRating": 8
+    },
+    {
+      "id": "turkey-ankara",
+      "name": "Ankara",
+      "type": "capital",
+      "coordinates": { "lat": 39.9334, "lng": 32.8597 },
+      "nation": "turkey",
+      "population": 5700000,
+      "defenseRating": 7
+    },
+    {
+      "id": "egypt-cairo",
+      "name": "Cairo",
+      "type": "capital",
+      "coordinates": { "lat": 30.0444, "lng": 31.2357 },
+      "nation": "egypt",
+      "population": 21750000,
+      "defenseRating": 6
+    },
+    {
+      "id": "southafrica-pretoria",
+      "name": "Pretoria",
+      "type": "capital",
+      "coordinates": { "lat": -25.7479, "lng": 28.2293 },
+      "nation": "southafrica",
+      "population": 2565000,
+      "defenseRating": 5
+    },
+    {
+      "id": "canada-ottawa",
+      "name": "Ottawa",
+      "type": "capital",
+      "coordinates": { "lat": 45.4215, "lng": -75.6972 },
+      "nation": "canada",
+      "population": 1017000,
+      "defenseRating": 6
+    },
+    {
+      "id": "italy-rome",
+      "name": "Rome",
+      "type": "capital",
+      "coordinates": { "lat": 41.9028, "lng": 12.4964 },
+      "nation": "italy",
+      "population": 2873000,
+      "defenseRating": 6
+    },
+    {
+      "id": "usa-norad",
+      "name": "NORAD (Cheyenne Mountain)",
+      "type": "command_center",
+      "coordinates": { "lat": 38.7445, "lng": -104.8469 },
+      "nation": "usa",
+      "defenseRating": 10
+    },
+    {
+      "id": "usa-pentagon",
+      "name": "The Pentagon",
+      "type": "command_center",
+      "coordinates": { "lat": 38.8719, "lng": -77.0563 },
+      "nation": "usa",
+      "defenseRating": 9
+    },
+    {
+      "id": "russia-command",
+      "name": "Kosvinsky Kamen",
+      "type": "command_center",
+      "coordinates": { "lat": 59.5100, "lng": 59.0600 },
+      "nation": "russia",
+      "defenseRating": 10
+    },
+    {
+      "id": "usa-ramstein",
+      "name": "Ramstein Air Base",
+      "type": "air_base",
+      "coordinates": { "lat": 49.4369, "lng": 7.6003 },
+      "nation": "usa",
+      "defenseRating": 8
+    },
+    {
+      "id": "usa-diegogarcia",
+      "name": "Diego Garcia",
+      "type": "naval_base",
+      "coordinates": { "lat": -7.3195, "lng": 72.4229 },
+      "nation": "usa",
+      "defenseRating": 7
+    },
+    {
+      "id": "usa-norfolk",
+      "name": "Naval Station Norfolk",
+      "type": "naval_base",
+      "coordinates": { "lat": 36.9481, "lng": -76.3033 },
+      "nation": "usa",
+      "defenseRating": 8
+    },
+    {
+      "id": "usa-pearlharbor",
+      "name": "Pearl Harbor",
+      "type": "naval_base",
+      "coordinates": { "lat": 21.3545, "lng": -157.9535 },
+      "nation": "usa",
+      "defenseRating": 8
+    },
+    {
+      "id": "russia-sevastopol",
+      "name": "Sevastopol Naval Base",
+      "type": "naval_base",
+      "coordinates": { "lat": 44.6054, "lng": 33.5220 },
+      "nation": "russia",
+      "defenseRating": 7
+    },
+    {
+      "id": "china-sanya",
+      "name": "Yulin Naval Base",
+      "type": "naval_base",
+      "coordinates": { "lat": 18.2278, "lng": 109.4930 },
+      "nation": "china",
+      "defenseRating": 8
+    },
+    {
+      "id": "uk-faslane",
+      "name": "HMNB Clyde (Faslane)",
+      "type": "naval_base",
+      "coordinates": { "lat": 56.0672, "lng": -4.8195 },
+      "nation": "uk",
+      "defenseRating": 8,
+      "nuclearCapacity": 4
+    },
+    {
+      "id": "usa-malmstrom",
+      "name": "Malmstrom AFB",
+      "type": "nuclear_silo",
+      "coordinates": { "lat": 47.5052, "lng": -111.1827 },
+      "nation": "usa",
+      "defenseRating": 9,
+      "nuclearCapacity": 150
+    },
+    {
+      "id": "usa-warren",
+      "name": "F.E. Warren AFB",
+      "type": "nuclear_silo",
+      "coordinates": { "lat": 41.1453, "lng": -104.8619 },
+      "nation": "usa",
+      "defenseRating": 9,
+      "nuclearCapacity": 150
+    },
+    {
+      "id": "usa-minot",
+      "name": "Minot AFB",
+      "type": "nuclear_silo",
+      "coordinates": { "lat": 48.4158, "lng": -101.3353 },
+      "nation": "usa",
+      "defenseRating": 9,
+      "nuclearCapacity": 150
+    },
+    {
+      "id": "russia-kozelsk",
+      "name": "Kozelsk ICBM Base",
+      "type": "nuclear_silo",
+      "coordinates": { "lat": 54.0333, "lng": 35.7833 },
+      "nation": "russia",
+      "defenseRating": 9,
+      "nuclearCapacity": 60
+    },
+    {
+      "id": "china-delingha",
+      "name": "Delingha Missile Base",
+      "type": "nuclear_silo",
+      "coordinates": { "lat": 37.3700, "lng": 97.3800 },
+      "nation": "china",
+      "defenseRating": 8,
+      "nuclearCapacity": 40
+    },
+    {
+      "id": "usa-threemile",
+      "name": "Three Mile Island",
+      "type": "power_plant",
+      "coordinates": { "lat": 40.1531, "lng": -76.7247 },
+      "nation": "usa",
+      "gridCapacity": 800
+    },
+    {
+      "id": "france-tricastin",
+      "name": "Tricastin Nuclear",
+      "type": "power_plant",
+      "coordinates": { "lat": 44.3308, "lng": 4.7319 },
+      "nation": "france",
+      "gridCapacity": 3800
+    },
+    {
+      "id": "russia-kursk",
+      "name": "Kursk Nuclear Plant",
+      "type": "power_plant",
+      "coordinates": { "lat": 51.6742, "lng": 35.6064 },
+      "nation": "russia",
+      "gridCapacity": 4000
+    },
+    {
+      "id": "japan-kashiwazaki",
+      "name": "Kashiwazaki-Kariwa",
+      "type": "power_plant",
+      "coordinates": { "lat": 37.4264, "lng": 138.5975 },
+      "nation": "japan",
+      "gridCapacity": 8200
+    },
+    {
+      "id": "china-yangjiang",
+      "name": "Yangjiang Nuclear",
+      "type": "power_plant",
+      "coordinates": { "lat": 21.7133, "lng": 112.2564 },
+      "nation": "china",
+      "gridCapacity": 6000
+    },
+    {
+      "id": "usa-newyork",
+      "name": "New York City",
+      "type": "major_city",
+      "coordinates": { "lat": 40.7128, "lng": -74.0060 },
+      "nation": "usa",
+      "population": 8336817,
+      "defenseRating": 5
+    },
+    {
+      "id": "usa-losangeles",
+      "name": "Los Angeles",
+      "type": "major_city",
+      "coordinates": { "lat": 34.0522, "lng": -118.2437 },
+      "nation": "usa",
+      "population": 3979576,
+      "defenseRating": 5
+    },
+    {
+      "id": "china-shanghai",
+      "name": "Shanghai",
+      "type": "major_city",
+      "coordinates": { "lat": 31.2304, "lng": 121.4737 },
+      "nation": "china",
+      "population": 27796000,
+      "defenseRating": 6
+    },
+    {
+      "id": "india-mumbai",
+      "name": "Mumbai",
+      "type": "major_city",
+      "coordinates": { "lat": 19.0760, "lng": 72.8777 },
+      "nation": "india",
+      "population": 20667656,
+      "defenseRating": 5
+    },
+    {
+      "id": "brazil-saopaulo",
+      "name": "São Paulo",
+      "type": "major_city",
+      "coordinates": { "lat": -23.5505, "lng": -46.6333 },
+      "nation": "brazil",
+      "population": 12325232,
+      "defenseRating": 4
+    },
+    {
+      "id": "usa-nsa",
+      "name": "NSA Headquarters",
+      "type": "comm_hub",
+      "coordinates": { "lat": 39.1086, "lng": -76.7711 },
+      "nation": "usa",
+      "defenseRating": 9
+    },
+    {
+      "id": "uk-gchq",
+      "name": "GCHQ",
+      "type": "comm_hub",
+      "coordinates": { "lat": 51.8994, "lng": -2.1244 },
+      "nation": "uk",
+      "defenseRating": 8
+    },
+    {
+      "id": "australia-pinegap",
+      "name": "Pine Gap",
+      "type": "comm_hub",
+      "coordinates": { "lat": -23.7991, "lng": 133.7369 },
+      "nation": "australia",
+      "defenseRating": 8
+    },
+    {
+      "id": "russia-lourdes",
+      "name": "Lourdes SIGINT",
+      "type": "comm_hub",
+      "coordinates": { "lat": 23.0000, "lng": -82.4000 },
+      "nation": "russia",
+      "defenseRating": 6
+    },
+    {
+      "id": "china-korla",
+      "name": "Korla SIGINT Station",
+      "type": "comm_hub",
+      "coordinates": { "lat": 41.7259, "lng": 86.1746 },
+      "nation": "china",
+      "defenseRating": 7
+    }
+  ]
+}

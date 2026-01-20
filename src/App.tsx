@@ -11,15 +11,42 @@ function App() {
   useEffect(() => {
     if (!canvasRef.current) return;
 
-    // Initialize Three.js scene with loading callbacks
-    const cleanup = initThreeScene(
-      canvasRef.current,
-      (progress) => setLoadingProgress(progress),
-      () => setIsLoadingComplete(true)
-    );
+    let cleanup: (() => void) | undefined;
+    let isMounted = true;
+
+    const init = async () => {
+      try {
+        // Initialize Three.js scene with loading callbacks
+        const cleanupFn = await initThreeScene(
+          canvasRef.current!,
+          (progress) => {
+            if (isMounted) setLoadingProgress(progress);
+          },
+          () => {
+            if (isMounted) setIsLoadingComplete(true);
+          }
+        );
+
+        if (isMounted) {
+          cleanup = cleanupFn;
+        } else {
+          // Component unmounted during initialization, cleanup immediately
+          cleanupFn();
+        }
+      } catch (error) {
+        console.error("Failed to initialize scene:", error);
+      }
+    };
+
+    init();
 
     // Return cleanup function
-    return cleanup;
+    return () => {
+      isMounted = false;
+      if (cleanup) {
+        cleanup();
+      }
+    };
   }, []);
 
   return (
