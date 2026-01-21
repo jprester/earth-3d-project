@@ -3,15 +3,54 @@
  */
 
 import type { Coordinates, CameraLevelName } from '../types';
+import type {
+  GamePhaseId,
+  GameRunState,
+  GameTime,
+  GameStats,
+  SpeedMultiplier,
+  FleetResources,
+  ResourceType,
+  ResourceChange,
+} from '../game/types';
 
 // Define all game events with their payload types
 export interface GameEvents {
+  // Camera events
   'camera:zoom': { level: CameraLevelName; distance: number };
   'camera:focus': { coordinates: Coordinates; locationId?: string };
+
+  // Marker events
   'marker:hover': { locationId: string | null };
   'marker:select': { locationId: string | null };
   'location:click': { locationId: string; coordinates: Coordinates };
   'globe:click': { coordinates: Coordinates };
+
+  // Game loop events
+  'game:started': { time: GameTime };
+  'game:paused': { time: GameTime };
+  'game:resumed': { time: GameTime };
+  'game:stopped': { time: GameTime };
+  'game:tick': { deltaMs: number; time: GameTime };
+  'game:hourChanged': { time: GameTime; previousHour: number };
+  'game:dayChanged': { time: GameTime; previousDay: number };
+  'game:speedChanged': { multiplier: SpeedMultiplier; previousMultiplier: SpeedMultiplier };
+  'game:timeRestored': { time: GameTime };
+
+  // Resource events
+  'resources:changed': { resources: FleetResources; changes: ResourceChange[] };
+  'resources:spent': { cost: Partial<Record<ResourceType, number>>; reason: string };
+  'resources:gained': { gains: Partial<Record<ResourceType, number>>; reason: string };
+  'resources:regenerated': { changes: ResourceChange[] };
+  'resources:insufficientFunds': { required: Partial<Record<ResourceType, number>>; available: FleetResources };
+
+  // Game state events
+  'game:phaseChanged': { phase: GamePhaseId; previousPhase: GamePhaseId };
+  'game:runStateChanged': { state: GameRunState; previousState: GameRunState };
+  'game:statsUpdated': { stats: GameStats };
+  'game:saved': { slot: string; timestamp: number };
+  'game:loaded': { slot: string; time: GameTime };
+  'game:reset': Record<string, never>;
 }
 
 export type EventCallback<T = unknown> = (payload: T) => void;

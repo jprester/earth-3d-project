@@ -240,7 +240,7 @@ export function calculateBearing(from: Coordinates, to: Coordinates): number {
   const x = Math.cos(lat1) * Math.sin(lat2) -
             Math.sin(lat1) * Math.cos(lat2) * Math.cos(deltaLng);
 
-  let bearing = Math.atan2(y, x) * (180 / Math.PI);
+  const bearing = Math.atan2(y, x) * (180 / Math.PI);
 
   // Normalize to 0-360
   return (bearing + 360) % 360;

@@ -1,15 +1,16 @@
 import * as THREE from "three";
 
-import { SpeedControl } from "./components/SpeedControl";
 import { Tooltip } from "./components/Tooltip";
 import { InfoPanel } from "./components/InfoPanel";
 import { OverlayToggle } from "./components/OverlayToggle";
+import { GameHUD } from "./components/GameHUD";
 import { CameraController } from "./rendering/CameraController";
 import { MarkerRenderer } from "./rendering/MarkerRenderer";
 import { WorldData } from "./world/WorldData";
 import { loadWorldData } from "./world/WorldDataLoader";
 import { eventBus } from "./core/EventBus";
 import { EARTH_RADIUS } from "./world/GeoUtils";
+import { GameLoop, ResourceManager, GameStateManager } from "./game";
 
 import earthVertexShader from "./shaders/earthVertex.glsl?raw";
 import earthFragmentShader from "./shaders/earthFragment.glsl?raw";
@@ -19,14 +20,14 @@ import starsFragmentShader from "./shaders/starsFragment.glsl?raw";
 export const initThreeScene = async (
   container: HTMLDivElement,
   onProgress?: (progress: number) => void,
-  onComplete?: () => void
+  onComplete?: () => void,
 ): Promise<() => void> => {
   const scene = new THREE.Scene();
   const camera = new THREE.PerspectiveCamera(
     45, // Start with orbital FOV
     window.innerWidth / window.innerHeight,
     0.1,
-    1000
+    1000,
   );
 
   const renderer = new THREE.WebGLRenderer({ antialias: true });
@@ -47,15 +48,6 @@ export const initThreeScene = async (
   // High-res texture references (only daymap and nightmap for performance)
   let earthTextureHD: THREE.Texture | null = null;
   let earthNightTextureHD: THREE.Texture | null = null;
-
-  // Create UI controls for rotation speed
-  const speedControl = new SpeedControl({
-    defaultValue: speedMultiplier,
-    onChange: (multiplier) => {
-      speedMultiplier = multiplier;
-    },
-  });
-  speedControl.appendTo(container);
 
   // Add ambient light for general illumination
   const ambientLight = new THREE.AmbientLight(0xffffff, 0.15);
@@ -93,7 +85,7 @@ export const initThreeScene = async (
 
   starsGeometry.setAttribute(
     "position",
-    new THREE.BufferAttribute(positions, 3)
+    new THREE.BufferAttribute(positions, 3),
   );
   starsGeometry.setAttribute("size", new THREE.BufferAttribute(sizes, 1));
   starsGeometry.setAttribute("alpha", new THREE.BufferAttribute(alphas, 1));
@@ -122,7 +114,7 @@ export const initThreeScene = async (
     const progress = Math.min((loadedTextures / total) * 100, 100);
 
     console.log(
-      `Progress: ${progress.toFixed(1)}% (Low: ${lowResTexturesLoaded}/${totalLowResTextures}, High: ${highResTexturesLoaded}/${totalHighResTextures})`
+      `Progress: ${progress.toFixed(1)}% (Low: ${lowResTexturesLoaded}/${totalLowResTextures}, High: ${highResTexturesLoaded}/${totalHighResTextures})`,
     );
 
     if (onProgress) {
@@ -147,29 +139,29 @@ export const initThreeScene = async (
     // onError callback
     (url) => {
       console.error(`Failed to load texture: ${url}`);
-    }
+    },
   );
 
   // Load Earth textures (2k versions)
   const textureLoader = new THREE.TextureLoader(loadingManager);
   const earthTexture = textureLoader.load(
-    "/assets/textures/2k_earth_daymap.jpg"
+    "/assets/textures/2k_earth_daymap.jpg",
   );
   earthTexture.anisotropy = 16;
   earthTexture.colorSpace = THREE.SRGBColorSpace;
 
   const earthNightTexture = textureLoader.load(
-    "/assets/textures/2k_earth_nightmap.jpg"
+    "/assets/textures/2k_earth_nightmap.jpg",
   );
   earthNightTexture.anisotropy = 16;
   earthNightTexture.colorSpace = THREE.SRGBColorSpace;
 
   const earthNormalMap = textureLoader.load(
-    "/assets/textures/2k_earth_normal_map.jpg"
+    "/assets/textures/2k_earth_normal_map.jpg",
   );
 
   const earthSpecularMap = textureLoader.load(
-    "/assets/textures/2k_earth_specular_map.jpg"
+    "/assets/textures/2k_earth_specular_map.jpg",
   );
 
   // Load Moon textures
@@ -178,7 +170,7 @@ export const initThreeScene = async (
 
   // Load Earth cloud texture
   const earthCloudAlpha = textureLoader.load(
-    "/assets/textures/2k_earth_clouds.jpg"
+    "/assets/textures/2k_earth_clouds.jpg",
   );
   earthCloudAlpha.anisotropy = 16;
 
@@ -213,7 +205,7 @@ export const initThreeScene = async (
       texture.colorSpace = THREE.SRGBColorSpace;
       console.log("8k daymap loaded and configured");
       onHDTextureLoad(texture);
-    }
+    },
   );
 
   earthNightTextureHD = textureLoader.load(
@@ -223,7 +215,7 @@ export const initThreeScene = async (
       texture.colorSpace = THREE.SRGBColorSpace;
       console.log("8k nightmap loaded and configured");
       onHDTextureLoad(texture);
-    }
+    },
   );
 
   // Earth configuration
@@ -334,7 +326,7 @@ export const initThreeScene = async (
   const worldData = new WorldData();
   worldData.initialize(locations, nations);
   console.log(
-    `Loaded ${locations.length} locations and ${nations.length} nations`
+    `Loaded ${locations.length} locations and ${nations.length} nations`,
   );
 
   // Create MarkerRenderer
@@ -369,6 +361,68 @@ export const initThreeScene = async (
     },
   });
   overlayToggle.appendTo(container);
+
+  // Initialize game systems
+  const gameStateManager = new GameStateManager({ worldData });
+  const resourceManager = new ResourceManager();
+  const gameLoop = new GameLoop({ initialSpeedMultiplier: 1 });
+
+  // Create Game HUD
+  const gameHUD = new GameHUD({
+    onPause: () => {
+      gameLoop.pause();
+      gameHUD.setIsRunning(false);
+    },
+    onResume: () => {
+      gameLoop.start();
+      gameHUD.setIsRunning(true);
+    },
+    onSave: () => {
+      const time = gameLoop.getGameTime();
+      const resources = resourceManager.getResources();
+      if (gameStateManager.saveGame(time, resources)) {
+        console.log("Game saved successfully");
+      }
+    },
+    onLoad: () => {
+      const state = gameStateManager.loadGame();
+      if (state) {
+        gameLoop.restoreTime(state.time);
+        resourceManager.setResources(state.resources);
+        gameHUD.setPhase(state.phase);
+        gameHUD.setTime(state.time);
+        gameHUD.setResources(state.resources);
+        console.log("Game loaded successfully");
+      } else {
+        console.log("No save game found");
+      }
+    },
+    onSpeedChange: (multiplier) => {
+      gameLoop.setSpeedMultiplier(multiplier);
+      gameHUD.setSpeed(multiplier);
+      speedMultiplier = multiplier; // Update rotation speed
+    },
+  });
+  gameHUD.appendTo(container);
+
+  // Initialize HUD with starting values
+  gameHUD.setPhase(gameStateManager.getCurrentPhase());
+  gameHUD.setTime(gameLoop.getGameTime());
+  gameHUD.setResources(resourceManager.getResources());
+  gameHUD.setSpeed(gameLoop.getSpeedMultiplier());
+
+  // Subscribe to game events for HUD updates
+  eventBus.on("game:tick", ({ time }) => {
+    gameHUD.setTime(time);
+  });
+
+  eventBus.on("resources:changed", ({ resources }) => {
+    gameHUD.setResources(resources);
+  });
+
+  eventBus.on("game:phaseChanged", ({ phase }) => {
+    gameHUD.setPhase(phase);
+  });
 
   // Track mouse position for tooltip
   let mouseX = 0;
@@ -495,16 +549,20 @@ export const initThreeScene = async (
     markerRenderer.dispose();
     eventBus.clear();
 
+    // Dispose game systems
+    gameLoop.dispose();
+    resourceManager.dispose();
+
     // Remove UI components
     tooltip.remove();
     infoPanel.remove();
     overlayToggle.remove();
+    gameHUD.remove();
 
     // Remove DOM elements
     if (container.contains(renderer.domElement)) {
       container.removeChild(renderer.domElement);
     }
-    speedControl.remove();
 
     // Dispose geometries
     starsGeometry.dispose();
