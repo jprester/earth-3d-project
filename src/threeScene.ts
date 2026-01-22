@@ -10,7 +10,12 @@ import { WorldData } from "./world/WorldData";
 import { loadWorldData } from "./world/WorldDataLoader";
 import { eventBus } from "./core/EventBus";
 import { EARTH_RADIUS } from "./world/GeoUtils";
-import { GameLoop, ResourceManager, GameStateManager } from "./game";
+import {
+  GameLoop,
+  ResourceManager,
+  GameStateManager,
+} from "./game";
+import { NotificationSystem } from "./components/NotificationSystem";
 
 import earthVertexShader from "./shaders/earthVertex.glsl?raw";
 import earthFragmentShader from "./shaders/earthFragment.glsl?raw";
@@ -367,6 +372,10 @@ export const initThreeScene = async (
   const resourceManager = new ResourceManager();
   const gameLoop = new GameLoop({ initialSpeedMultiplier: 1 });
 
+  // Create notification system
+  const notificationSystem = new NotificationSystem();
+  notificationSystem.appendTo(container);
+
   // Create Game HUD
   const gameHUD = new GameHUD({
     onPause: () => {
@@ -416,12 +425,12 @@ export const initThreeScene = async (
     gameHUD.setTime(time);
   });
 
-  eventBus.on("resources:changed", ({ resources }) => {
-    gameHUD.setResources(resources);
-  });
-
   eventBus.on("game:phaseChanged", ({ phase }) => {
     gameHUD.setPhase(phase);
+  });
+
+  eventBus.on("resources:changed", ({ resources }) => {
+    gameHUD.setResources(resources);
   });
 
   // Track mouse position for tooltip
@@ -558,6 +567,7 @@ export const initThreeScene = async (
     infoPanel.remove();
     overlayToggle.remove();
     gameHUD.remove();
+    notificationSystem.remove();
 
     // Remove DOM elements
     if (container.contains(renderer.domElement)) {

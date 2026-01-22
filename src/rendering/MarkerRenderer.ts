@@ -28,8 +28,8 @@ const TYPE_COLORS: Record<LocationType, number> = {
 
 // Status modifiers for marker appearance
 const STATUS_OPACITY: Record<LocationStatus, number> = {
-  unknown: 0.3,
-  detected: 0.6,
+  unknown: 0.0, // Hidden - fog of war
+  detected: 0.5, // Partially visible
   analyzed: 1.0,
   targeted: 1.0,
   neutralized: 0.4,
@@ -395,13 +395,12 @@ export class MarkerRenderer {
       );
 
       const material = marker.sprite.material as THREE.SpriteMaterial;
-      const baseOpacity = STATUS_OPACITY[marker.status];
 
       if (isVisible) {
-        material.opacity = baseOpacity;
+        material.opacity = 1.0;
       } else {
         // Fade out markers on the back of the globe
-        material.opacity = baseOpacity * 0.15;
+        material.opacity = 0.15;
       }
     }
   }

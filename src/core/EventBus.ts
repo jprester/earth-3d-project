@@ -51,6 +51,9 @@ export interface GameEvents {
   'game:saved': { slot: string; timestamp: number };
   'game:loaded': { slot: string; time: GameTime };
   'game:reset': Record<string, never>;
+
+  // Notification events
+  'notification:show': { message: string; type: 'info' | 'success' | 'warning' | 'error'; duration?: number };
 }
 
 export type EventCallback<T = unknown> = (payload: T) => void;
