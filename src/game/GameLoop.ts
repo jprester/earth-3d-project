@@ -1,6 +1,6 @@
 /**
  * Game loop with time management
- * 1 real second = 1 game hour at 1x speed
+ * 1 real second = 1 game minute at 1x speed (realistic pacing)
  */
 
 import { eventBus } from '../core/EventBus';
@@ -8,7 +8,10 @@ import type { GameTime, SpeedMultiplier } from './types';
 import { SPEED_PRESETS } from './types';
 
 // Time constants
-const MS_PER_GAME_HOUR = 1000; // 1 second real time = 1 game hour at 1x
+// At 1x speed: 1 real second = 1 game minute
+// So 1 real minute = 1 game hour, 1 real hour = ~2.5 game days
+const MS_PER_GAME_MINUTE = 1000; // 1 second real time = 1 game minute at 1x
+const MS_PER_GAME_HOUR = MS_PER_GAME_MINUTE * 60; // 60 seconds real time = 1 game hour
 const MINUTES_PER_HOUR = 60;
 const HOURS_PER_DAY = 24;
 

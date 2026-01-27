@@ -4,14 +4,10 @@
 
 import type { Coordinates, CameraLevelName } from '../types';
 import type {
-  GamePhaseId,
-  GameRunState,
   GameTime,
-  GameStats,
   SpeedMultiplier,
-  FleetResources,
-  ResourceType,
-  ResourceChange,
+  ScenarioEvent,
+  ScenarioTime,
 } from '../game/types';
 
 // Define all game events with their payload types
@@ -37,20 +33,10 @@ export interface GameEvents {
   'game:speedChanged': { multiplier: SpeedMultiplier; previousMultiplier: SpeedMultiplier };
   'game:timeRestored': { time: GameTime };
 
-  // Resource events
-  'resources:changed': { resources: FleetResources; changes: ResourceChange[] };
-  'resources:spent': { cost: Partial<Record<ResourceType, number>>; reason: string };
-  'resources:gained': { gains: Partial<Record<ResourceType, number>>; reason: string };
-  'resources:regenerated': { changes: ResourceChange[] };
-  'resources:insufficientFunds': { required: Partial<Record<ResourceType, number>>; available: FleetResources };
-
-  // Game state events
-  'game:phaseChanged': { phase: GamePhaseId; previousPhase: GamePhaseId };
-  'game:runStateChanged': { state: GameRunState; previousState: GameRunState };
-  'game:statsUpdated': { stats: GameStats };
-  'game:saved': { slot: string; timestamp: number };
-  'game:loaded': { slot: string; time: GameTime };
-  'game:reset': Record<string, never>;
+  // Scenario events
+  'scenario:loaded': { scenarioId: string; name: string; totalEvents: number };
+  'scenario:eventTriggered': { event: ScenarioEvent; scenarioTime: ScenarioTime };
+  'scenario:complete': { scenarioId: string; totalEvents: number; duration: ScenarioTime };
 
   // Notification events
   'notification:show': { message: string; type: 'info' | 'success' | 'warning' | 'error'; duration?: number };

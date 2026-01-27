@@ -3,19 +3,18 @@ import * as THREE from "three";
 import { Tooltip } from "./components/Tooltip";
 import { InfoPanel } from "./components/InfoPanel";
 import { OverlayToggle } from "./components/OverlayToggle";
-import { GameHUD } from "./components/GameHUD";
 import { CameraController } from "./rendering/CameraController";
 import { MarkerRenderer } from "./rendering/MarkerRenderer";
 import { WorldData } from "./world/WorldData";
 import { loadWorldData } from "./world/WorldDataLoader";
 import { eventBus } from "./core/EventBus";
 import { EARTH_RADIUS } from "./world/GeoUtils";
-import {
-  GameLoop,
-  ResourceManager,
-  GameStateManager,
-} from "./game";
-import { NotificationSystem } from "./components/NotificationSystem";
+import { GameLoop, ScenarioEngine } from "./game";
+import { AlienCommandFeed } from "./components/AlienCommandFeed";
+import { HumanNewsFeed } from "./components/HumanNewsFeed";
+import { PlaybackControls } from "./components/PlaybackControls";
+import { firstContactScenario } from "./scenarios";
+import type { SpeedMultiplier } from "./game/types";
 
 import earthVertexShader from "./shaders/earthVertex.glsl?raw";
 import earthFragmentShader from "./shaders/earthFragment.glsl?raw";
@@ -368,70 +367,83 @@ export const initThreeScene = async (
   overlayToggle.appendTo(container);
 
   // Initialize game systems
-  const gameStateManager = new GameStateManager({ worldData });
-  const resourceManager = new ResourceManager();
   const gameLoop = new GameLoop({ initialSpeedMultiplier: 1 });
+  const scenarioEngine = new ScenarioEngine();
 
-  // Create notification system
-  const notificationSystem = new NotificationSystem();
-  notificationSystem.appendTo(container);
+  // Create narrative UI feeds
+  const alienCommandFeed = new AlienCommandFeed();
+  alienCommandFeed.appendTo(container);
 
-  // Create Game HUD
-  const gameHUD = new GameHUD({
+  const humanNewsFeed = new HumanNewsFeed();
+  humanNewsFeed.appendTo(container);
+
+  // Create playback controls
+  const playbackControls = new PlaybackControls({
     onPause: () => {
       gameLoop.pause();
-      gameHUD.setIsRunning(false);
+      playbackControls.setIsPlaying(false);
     },
     onResume: () => {
       gameLoop.start();
-      gameHUD.setIsRunning(true);
+      playbackControls.setIsPlaying(true);
     },
-    onSave: () => {
-      const time = gameLoop.getGameTime();
-      const resources = resourceManager.getResources();
-      if (gameStateManager.saveGame(time, resources)) {
-        console.log("Game saved successfully");
-      }
-    },
-    onLoad: () => {
-      const state = gameStateManager.loadGame();
-      if (state) {
-        gameLoop.restoreTime(state.time);
-        resourceManager.setResources(state.resources);
-        gameHUD.setPhase(state.phase);
-        gameHUD.setTime(state.time);
-        gameHUD.setResources(state.resources);
-        console.log("Game loaded successfully");
-      } else {
-        console.log("No save game found");
-      }
-    },
-    onSpeedChange: (multiplier) => {
-      gameLoop.setSpeedMultiplier(multiplier);
-      gameHUD.setSpeed(multiplier);
-      speedMultiplier = multiplier; // Update rotation speed
+    onSpeedChange: (newSpeed: SpeedMultiplier) => {
+      gameLoop.setSpeedMultiplier(newSpeed);
+      speedMultiplier = newSpeed;
     },
   });
-  gameHUD.appendTo(container);
+  playbackControls.appendTo(container);
 
-  // Initialize HUD with starting values
-  gameHUD.setPhase(gameStateManager.getCurrentPhase());
-  gameHUD.setTime(gameLoop.getGameTime());
-  gameHUD.setResources(resourceManager.getResources());
-  gameHUD.setSpeed(gameLoop.getSpeedMultiplier());
-
-  // Subscribe to game events for HUD updates
+  // Update time display on tick
   eventBus.on("game:tick", ({ time }) => {
-    gameHUD.setTime(time);
+    playbackControls.setTime(time);
   });
 
-  eventBus.on("game:phaseChanged", ({ phase }) => {
-    gameHUD.setPhase(phase);
+  // Subscribe to scenario events
+  eventBus.on("scenario:eventTriggered", ({ event }) => {
+    const time = gameLoop.getGameTime();
+
+    // Update feeds
+    alienCommandFeed.addEntry(event, time);
+    humanNewsFeed.addEntry(event, time);
+
+    // Update location status if effect specified
+    if (event.effect) {
+      const location = worldData.getLocation(event.effect.locationId);
+      if (location) {
+        if (event.effect.newStatus) {
+          location.status = event.effect.newStatus;
+        }
+        if (event.effect.newControlledBy) {
+          location.controlledBy = event.effect.newControlledBy;
+        }
+        if (event.effect.stabilityChange) {
+          location.stability = Math.max(0, Math.min(100, location.stability + event.effect.stabilityChange));
+        }
+        // Update marker appearance
+        markerRenderer.updateMarkerStatus(event.effect.locationId, location.status);
+      }
+    }
+
+    // Focus camera on event location if requested
+    if (event.focusCamera && event.locationId) {
+      const location = worldData.getLocation(event.locationId);
+      if (location) {
+        cameraController.panToLocation(location.coordinates);
+      }
+    }
   });
 
-  eventBus.on("resources:changed", ({ resources }) => {
-    gameHUD.setResources(resources);
+  eventBus.on("scenario:complete", ({ scenarioId }) => {
+    console.log(`Scenario "${scenarioId}" complete!`);
+    alienCommandFeed.addSystemMessage("ALL OBJECTIVES COMPLETE");
+    humanNewsFeed.addSystemMessage("Transmission ended.", "major");
   });
+
+  // Load and start the scenario
+  scenarioEngine.loadScenario(firstContactScenario);
+  gameLoop.start();
+  playbackControls.setIsPlaying(true);
 
   // Track mouse position for tooltip
   let mouseX = 0;
@@ -560,14 +572,15 @@ export const initThreeScene = async (
 
     // Dispose game systems
     gameLoop.dispose();
-    resourceManager.dispose();
+    scenarioEngine.dispose();
 
     // Remove UI components
     tooltip.remove();
     infoPanel.remove();
     overlayToggle.remove();
-    gameHUD.remove();
-    notificationSystem.remove();
+    alienCommandFeed.remove();
+    humanNewsFeed.remove();
+    playbackControls.remove();
 
     // Remove DOM elements
     if (container.contains(renderer.domElement)) {

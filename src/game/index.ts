@@ -4,5 +4,4 @@
 
 export * from './types';
 export { GameLoop } from './GameLoop';
-export { ResourceManager } from './ResourceManager';
-export { GameStateManager } from './GameStateManager';
+export { ScenarioEngine } from './ScenarioEngine';
