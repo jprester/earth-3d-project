@@ -87,7 +87,7 @@ export class OverlayToggle {
     this.container.style.cssText = `
       position: fixed;
       bottom: 20px;
-      left: 20px;
+      right: 20px;
       background: rgba(0, 10, 20, 0.9);
       border: 1px solid rgba(100, 200, 255, 0.3);
       border-radius: 8px;
