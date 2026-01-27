@@ -425,14 +425,7 @@ export const initThreeScene = async (
       }
     }
 
-    // Focus camera on event location if requested
-    if (event.focusCamera && event.locationId) {
-      const location = worldData.getLocation(event.locationId);
-      if (location) {
-        cameraController.panToLocation(location.coordinates);
-      }
-    }
-  });
+    });
 
   eventBus.on("scenario:complete", ({ scenarioId }) => {
     console.log(`Scenario "${scenarioId}" complete!`);
