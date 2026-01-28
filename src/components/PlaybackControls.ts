@@ -3,7 +3,7 @@
  */
 
 import type { GameTime, SpeedMultiplier } from '../game/types';
-import { SPEED_PRESETS } from '../game/types';
+import { SPEED_PRESETS, SPEED_LABELS } from '../game/types';
 
 export interface PlaybackControlsOptions {
   onPause?: () => void;
@@ -107,7 +107,7 @@ export class PlaybackControls {
         padding: 4px 8px;
         transition: all 0.15s ease;
       `;
-      btn.textContent = `${speed}x`;
+      btn.textContent = SPEED_LABELS[speed] || `${speed}x`;
       btn.dataset.speed = String(speed);
       btn.onclick = () => this.setSpeed(speed);
       this.speedDisplay.appendChild(btn);

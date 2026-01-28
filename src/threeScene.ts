@@ -2,9 +2,11 @@ import * as THREE from "three";
 
 import { Tooltip } from "./components/Tooltip";
 import { InfoPanel } from "./components/InfoPanel";
+import { OrbitalInfoPanel } from "./components/OrbitalInfoPanel";
 import { OverlayToggle } from "./components/OverlayToggle";
 import { CameraController } from "./rendering/CameraController";
 import { MarkerRenderer } from "./rendering/MarkerRenderer";
+import { FleetManager } from "./rendering/FleetManager";
 import { WorldData } from "./world/WorldData";
 import { loadWorldData } from "./world/WorldDataLoader";
 import { eventBus } from "./core/EventBus";
@@ -347,6 +349,10 @@ export const initThreeScene = async (
   markerRenderer.addMarkers(worldData.getAllLocations());
   console.log(`Added ${worldData.getAllLocations().length} markers to globe`);
 
+  // Create alien fleet and satellites
+  const fleetManager = new FleetManager(scene);
+  console.log("Alien fleet deployed to Earth orbit");
+
   // Create UI components
   const tooltip = new Tooltip();
   tooltip.appendTo(container);
@@ -358,6 +364,9 @@ export const initThreeScene = async (
     getNation: (nationId) => worldData.getNation(nationId),
   });
   infoPanel.appendTo(container);
+
+  const orbitalInfoPanel = new OrbitalInfoPanel();
+  orbitalInfoPanel.appendTo(container);
 
   const overlayToggle = new OverlayToggle({
     onChange: (visibleTypes) => {
@@ -441,12 +450,85 @@ export const initThreeScene = async (
   // Track mouse position for tooltip
   let mouseX = 0;
   let mouseY = 0;
+
+  // Orbital object interaction state
+  let hoveredOrbitalId: string | null = null;
+  const orbitalRaycaster = new THREE.Raycaster();
+  const mouseNDC = new THREE.Vector2();
+
+  // Check for orbital object under mouse cursor
+  const checkOrbitalHover = (x: number, y: number): void => {
+    // Convert to normalized device coordinates (relative to canvas)
+    const rect = renderer.domElement.getBoundingClientRect();
+    mouseNDC.x = ((x - rect.left) / rect.width) * 2 - 1;
+    mouseNDC.y = -((y - rect.top) / rect.height) * 2 + 1;
+
+    orbitalRaycaster.setFromCamera(mouseNDC, camera);
+
+    // Get all orbital meshes and check intersection
+    const fleetGroup = fleetManager.getFleetGroup();
+    const intersects = orbitalRaycaster.intersectObject(fleetGroup, true);
+
+    if (intersects.length > 0) {
+      const orbitalObject = fleetManager.getObjectFromIntersection(intersects[0].object);
+      if (orbitalObject) {
+        if (hoveredOrbitalId !== orbitalObject.id) {
+          hoveredOrbitalId = orbitalObject.id;
+          tooltip.showOrbital(orbitalObject, x, y);
+          renderer.domElement.style.cursor = 'pointer';
+        }
+        return;
+      }
+    }
+
+    // No orbital object under cursor
+    if (hoveredOrbitalId) {
+      hoveredOrbitalId = null;
+      tooltip.hide();
+      renderer.domElement.style.cursor = 'auto';
+    }
+  };
+
   const handleMouseMove = (e: MouseEvent) => {
     mouseX = e.clientX;
     mouseY = e.clientY;
     tooltip.updatePosition(mouseX, mouseY);
+
+    // Check for orbital object hover (only if not hovering a marker)
+    checkOrbitalHover(mouseX, mouseY);
   };
   renderer.domElement.addEventListener("mousemove", handleMouseMove);
+
+  // Handle click on orbital objects (use capture phase to run before marker handler)
+  const handleOrbitalClick = (e: MouseEvent) => {
+    // Use the same coordinate calculation as hover
+    const rect = renderer.domElement.getBoundingClientRect();
+    mouseNDC.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    mouseNDC.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+
+    orbitalRaycaster.setFromCamera(mouseNDC, camera);
+
+    const fleetGroup = fleetManager.getFleetGroup();
+    const intersects = orbitalRaycaster.intersectObject(fleetGroup, true);
+
+    if (intersects.length > 0) {
+      const orbitalObject = fleetManager.getObjectFromIntersection(intersects[0].object);
+      if (orbitalObject) {
+        // Stop event from reaching marker handler
+        e.stopPropagation();
+
+        // Close location info panel if open
+        infoPanel.hide();
+        markerRenderer.selectMarker(null);
+
+        // Show orbital info panel
+        orbitalInfoPanel.show(orbitalObject);
+        return;
+      }
+    }
+  };
+  // Use capture phase so this runs before MarkerRenderer's click handler
+  renderer.domElement.addEventListener("click", handleOrbitalClick, true);
 
   // Set up marker event callbacks
   markerRenderer.setCallbacks({
@@ -466,14 +548,16 @@ export const initThreeScene = async (
       if (locationId) {
         const location = worldData.getLocation(locationId);
         if (location) {
+          // Close orbital info panel if open
+          orbitalInfoPanel.hide();
           // Show info panel
           infoPanel.show(location);
           // Pan camera to selected location (without changing zoom)
           cameraController.panToLocation(location.coordinates);
         }
-      } else {
-        infoPanel.hide();
       }
+      // Note: Don't call infoPanel.hide() here when locationId is null,
+      // as that creates a circular call with onClose -> selectMarker(null) -> onSelect
     },
     onClick: (locationId, coordinates) => {
       eventBus.emit("location:click", { locationId, coordinates });
@@ -511,6 +595,9 @@ export const initThreeScene = async (
 
     // Update marker renderer
     markerRenderer.update();
+
+    // Update alien fleet orbital positions
+    fleetManager.update(16, speedMultiplier); // ~60fps frame time
 
     // LOD: Check camera distance and swap textures
     const cameraDistance = camera.position.distanceTo(earth.position);
@@ -557,10 +644,12 @@ export const initThreeScene = async (
     // Remove event listeners
     window.removeEventListener("resize", handleResize);
     renderer.domElement.removeEventListener("mousemove", handleMouseMove);
+    renderer.domElement.removeEventListener("click", handleOrbitalClick, true);
 
     // Dispose new systems
     cameraController.dispose();
     markerRenderer.dispose();
+    fleetManager.dispose();
     eventBus.clear();
 
     // Dispose game systems
@@ -570,6 +659,7 @@ export const initThreeScene = async (
     // Remove UI components
     tooltip.remove();
     infoPanel.remove();
+    orbitalInfoPanel.remove();
     overlayToggle.remove();
     alienCommandFeed.remove();
     humanNewsFeed.remove();

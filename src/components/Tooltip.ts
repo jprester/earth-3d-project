@@ -3,6 +3,7 @@
  */
 
 import type { LocationState, LocationType } from '../types';
+import type { OrbitalObject } from '../rendering/FleetManager';
 
 const TYPE_LABELS: Record<LocationType, string> = {
   capital: 'Capital',
@@ -28,6 +29,26 @@ const TYPE_ICONS: Record<LocationType, string> = {
   command_center: '◆',
   power_plant: '⚡',
   comm_hub: '📡',
+};
+
+const ORBITAL_TYPE_ICONS: Record<string, string> = {
+  command_carrier: '👽',
+  strike_cruiser: '🚀',
+  kinetic_platform: '☄️',
+  drone_carrier: '🛸',
+  iss: '🛰️',
+  gps: '📡',
+  military: '🔭',
+};
+
+const ORBITAL_TYPE_LABELS: Record<string, string> = {
+  command_carrier: 'Command Carrier',
+  strike_cruiser: 'Strike Cruiser',
+  kinetic_platform: 'Kinetic Platform',
+  drone_carrier: 'Drone Carrier',
+  iss: 'Space Station',
+  gps: 'Navigation Satellite',
+  military: 'Recon Satellite',
 };
 
 export class Tooltip {
@@ -111,6 +132,56 @@ export class Tooltip {
   hide(): void {
     this.container.style.opacity = '0';
     this.isVisible = false;
+  }
+
+  showOrbital(orbitalObject: OrbitalObject, x: number, y: number): void {
+    const icon = ORBITAL_TYPE_ICONS[orbitalObject.type] || '●';
+    const typeLabel = ORBITAL_TYPE_LABELS[orbitalObject.type] || orbitalObject.type;
+    const info = orbitalObject.info;
+    const categoryColor = info.category === 'alien' ? '#00ff88' : '#64c8ff';
+    const statusColor = info.status === 'active' ? '#00ff88' : info.status === 'disabled' ? '#ffaa00' : '#ff4444';
+
+    let content = `
+      <div style="display: flex; align-items: center; gap: 6px; margin-bottom: 4px;">
+        <span style="font-size: 16px;">${icon}</span>
+        <span style="font-weight: bold; color: ${categoryColor};">${info.name}</span>
+      </div>
+      <div style="color: #aaa; font-size: 11px;">${typeLabel}</div>
+      <div style="display: flex; gap: 8px; margin-top: 6px;">
+        <span style="color: #888; font-size: 10px;">Status:</span>
+        <span style="color: ${statusColor}; font-size: 10px; text-transform: uppercase;">${info.status}</span>
+      </div>
+    `;
+
+    if (info.orbitType) {
+      content += `<div style="color: #666; font-size: 10px; margin-top: 2px;">${info.orbitType}</div>`;
+    }
+
+    content += `<div style="color: #555; font-size: 9px; margin-top: 6px; font-style: italic;">Click for details</div>`;
+
+    this.container.innerHTML = content;
+
+    // Position tooltip near cursor, but keep on screen
+    const padding = 15;
+    const rect = this.container.getBoundingClientRect();
+
+    let left = x + padding;
+    let top = y + padding;
+
+    // Adjust if going off right edge
+    if (left + rect.width > window.innerWidth - padding) {
+      left = x - rect.width - padding;
+    }
+
+    // Adjust if going off bottom edge
+    if (top + rect.height > window.innerHeight - padding) {
+      top = y - rect.height - padding;
+    }
+
+    this.container.style.left = `${left}px`;
+    this.container.style.top = `${top}px`;
+    this.container.style.opacity = '1';
+    this.isVisible = true;
   }
 
   updatePosition(x: number, y: number): void {

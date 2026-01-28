@@ -149,6 +149,9 @@ export class InfoPanel {
   }
 
   hide(): void {
+    // Guard against multiple calls / recursive loops
+    if (this.currentLocation === null) return;
+
     this.container.style.opacity = '0';
     this.container.style.transform = 'translateX(20px)';
     this.container.style.pointerEvents = 'none';

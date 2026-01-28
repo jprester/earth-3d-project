@@ -8,8 +8,21 @@ import type { LocationStatus } from '../../types';
 export type ScenarioTime = number;
 
 // Speed multipliers for time progression
-export type SpeedMultiplier = 1 | 2 | 5 | 10 | 20;
-export const SPEED_PRESETS: SpeedMultiplier[] = [1, 2, 5, 10, 20];
+// At base speed (1): 1 real second = 1 game minute
+// Real-time (REALTIME_SPEED): 1 real second = 1 game second
+export const REALTIME_SPEED = 1 / 60;
+export type SpeedMultiplier = number;
+export const SPEED_PRESETS: SpeedMultiplier[] = [REALTIME_SPEED, 1, 2, 5, 10, 20];
+
+const rt = REALTIME_SPEED;
+export const SPEED_LABELS: Record<number, string> = {
+  [rt]: 'Real',
+  1: '1x',
+  2: '2x',
+  5: '5x',
+  10: '10x',
+  20: '20x',
+};
 
 // Game time representation
 export interface GameTime {
