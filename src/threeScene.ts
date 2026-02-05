@@ -45,8 +45,9 @@ export const initThreeScene = async (
   renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
   container.appendChild(renderer.domElement);
 
-  // Speed multiplier for rotation
+  // Speed multiplier for rotation and visuals
   let speedMultiplier = 1;
+  let isPaused = false;
 
   // LOD state variable
   let usingHighRes = false;
@@ -395,10 +396,12 @@ export const initThreeScene = async (
   const playbackControls = new PlaybackControls({
     onPause: () => {
       gameLoop.pause();
+      isPaused = true;
       playbackControls.setIsPlaying(false);
     },
     onResume: () => {
       gameLoop.start();
+      isPaused = false;
       playbackControls.setIsPlaying(true);
     },
     onSpeedChange: (newSpeed: SpeedMultiplier) => {
@@ -603,15 +606,11 @@ export const initThreeScene = async (
   atmosphere.scale.setScalar(1.04);
   scene.add(atmosphere);
 
-  // Realistic rotation speeds
-  // Full Earth rotation = 2π radians in 24 hours
-  // At 60fps, that's 24 * 60 * 60 * 60 frames for one rotation
-  const baseEarthRotationSpeed = (2 * Math.PI) / (24 * 60 * 60 * 60);
-
-  // Sun orbit angle (for day/night cycle visualization)
-  // The sun "orbits" around Earth for visual effect
-  let sunOrbitAngle = 0;
-  const sunOrbitRadius = 10;
+  // Earth rotation synced to game time
+  // At 1x speed: 1 real second = 1 game minute, so 1 game day = 24 real minutes
+  // Earth completes 2π radians per game day (24 game hours = 24*60 real seconds at 1x)
+  // Per frame at 60fps: 2π / (24 * 60 * 60) radians
+  const baseEarthRotationSpeed = (2 * Math.PI) / (24 * 60 * 60);
 
   let moonOrbitAngle = 0;
 
@@ -622,11 +621,14 @@ export const initThreeScene = async (
     // Update marker renderer
     markerRenderer.update();
 
+    // Effective speed: 0 when paused, otherwise use speed multiplier
+    const effectiveSpeed = isPaused ? 0 : speedMultiplier;
+
     // Update alien fleet orbital positions
-    fleetManager.update(16, speedMultiplier); // ~60fps frame time
+    fleetManager.update(16, effectiveSpeed); // ~60fps frame time
 
     // Update weapon effects (projectiles, explosions)
-    weaponEffectsManager.update(speedMultiplier);
+    weaponEffectsManager.update(effectiveSpeed);
 
     // LOD: Check camera distance and swap textures
     const cameraDistance = camera.position.distanceTo(earth.position);
@@ -640,23 +642,15 @@ export const initThreeScene = async (
     }
 
     // Calculate rotation speeds with multiplier
-    const earthRotationSpeed = baseEarthRotationSpeed * speedMultiplier;
+    const earthRotationSpeed = baseEarthRotationSpeed * effectiveSpeed;
     const cloudRotationSpeed = earthRotationSpeed * 1.5;
     const moonOrbitSpeed = earthRotationSpeed / 27.3;
     const moonRotationSpeed = moonOrbitSpeed;
 
-    // Update sun position for day/night cycle
-    // Sun completes one "orbit" per Earth day (24 game hours)
-    sunOrbitAngle += earthRotationSpeed;
-    const sunX = Math.cos(sunOrbitAngle) * sunOrbitRadius;
-    const sunZ = Math.sin(sunOrbitAngle) * sunOrbitRadius;
-    sunLight.position.set(sunX, 0, sunZ);
+    // Rotate Earth on its axis (drives day/night cycle via world-space normals in shader)
+    earth.rotation.y += earthRotationSpeed;
 
-    // Update shader sun direction uniform
-    const sunDirection = new THREE.Vector3(sunX, 0, sunZ).normalize();
-    earthMaterial.uniforms.sunDirection.value.copy(sunDirection);
-
-    // Clouds rotate slightly faster than Earth (wind effect)
+    // Rotate clouds slightly faster than Earth (wind effect)
     clouds.rotation.y += cloudRotationSpeed;
 
     // Rotate Moon on its axis (slowly, tidally locked)
