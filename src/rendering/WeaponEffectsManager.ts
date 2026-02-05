@@ -1,10 +1,8 @@
 /**
  * WeaponEffectsManager - Manages visual weapon effects (projectiles, explosions, impact marks)
  *
- * Subscribes to scenario events and renders:
- * - Kinetic rods / missiles traveling from ships to surface
- * - Explosions at impact points
- * - Persistent impact marks showing damage
+ * Projectiles fly in world space (from orbiting ships to surface).
+ * Explosions and impact marks are children of the Earth mesh so they rotate with it.
  */
 
 import * as THREE from 'three';
@@ -47,6 +45,9 @@ const IMPORTANCE_SCALE = {
   critical: 1.5,
 };
 
+// Impact marks fade out over this duration (ms)
+const IMPACT_MARK_FADE_DURATION = 30000; // 30 seconds
+
 interface ActiveProjectile extends Projectile {
   mesh: THREE.Group;
   startPosition: THREE.Vector3;
@@ -67,16 +68,20 @@ interface ActiveImpactMark extends ImpactMark {
 
 export class WeaponEffectsManager {
   private scene: THREE.Scene;
+  private earthMesh: THREE.Mesh;
   private fleetManager: FleetManager;
   private config: WeaponEffectsConfig;
 
-  // Effect containers
-  private effectsGroup: THREE.Group;
+  // Projectiles live in world space (fly from orbiting ships)
+  private projectilesGroup: THREE.Group;
+  // Surface effects (explosions, impact marks) are children of Earth mesh
+  private surfaceEffectsGroup: THREE.Group;
+
   private projectiles: Map<string, ActiveProjectile> = new Map();
   private explosions: Map<string, ActiveExplosion> = new Map();
   private impactMarks: Map<string, ActiveImpactMark> = new Map();
 
-  // Shared geometries and materials (for performance)
+  // Shared geometries (for performance)
   private projectileGeometry: THREE.CylinderGeometry;
   private projectileTrailGeometry: THREE.ConeGeometry;
   private explosionCoreGeometry: THREE.SphereGeometry;
@@ -89,17 +94,24 @@ export class WeaponEffectsManager {
 
   constructor(
     scene: THREE.Scene,
+    earthMesh: THREE.Mesh,
     fleetManager: FleetManager,
     config: Partial<WeaponEffectsConfig> = {}
   ) {
     this.scene = scene;
+    this.earthMesh = earthMesh;
     this.fleetManager = fleetManager;
     this.config = { ...DEFAULT_WEAPON_EFFECTS_CONFIG, ...config };
 
-    // Create effects group
-    this.effectsGroup = new THREE.Group();
-    this.effectsGroup.name = 'WeaponEffects';
-    this.scene.add(this.effectsGroup);
+    // Projectiles in world space (scene-level)
+    this.projectilesGroup = new THREE.Group();
+    this.projectilesGroup.name = 'WeaponProjectiles';
+    this.scene.add(this.projectilesGroup);
+
+    // Surface effects parented to Earth so they rotate with it
+    this.surfaceEffectsGroup = new THREE.Group();
+    this.surfaceEffectsGroup.name = 'SurfaceEffects';
+    this.earthMesh.add(this.surfaceEffectsGroup);
 
     // Initialize shared geometries
     this.projectileGeometry = new THREE.CylinderGeometry(0.008, 0.008, 0.06, 6);
@@ -124,18 +136,21 @@ export class WeaponEffectsManager {
     // Find the nearest appropriate ship to fire from
     const originShip = this.findFiringShip(targetCoordinates, weaponType);
     if (!originShip) {
-      console.warn('No suitable ship found to fire weapon');
+      // No ship found - create explosion directly at target
+      this.createExplosion(targetLocationId, targetCoordinates, importance);
+      this.createImpactMark(targetLocationId, targetCoordinates, importance);
       return id;
     }
 
     // Calculate positions
     const startPosition = originShip.mesh.position.clone();
-    const endPosition = latLngToVector3(targetCoordinates, EARTH_RADIUS, 0.01);
+    // End position in Earth's local space (same coords as markers use)
+    const endPositionLocal = latLngToVector3(targetCoordinates, EARTH_RADIUS, 0.01);
 
-    // Create projectile mesh
+    // Create projectile mesh in world space
     const mesh = this.createProjectileMesh(weaponType, importance);
     mesh.position.copy(startPosition);
-    this.effectsGroup.add(mesh);
+    this.projectilesGroup.add(mesh);
 
     // Store projectile data
     const projectile: ActiveProjectile = {
@@ -149,7 +164,8 @@ export class WeaponEffectsManager {
       importance,
       mesh,
       startPosition,
-      endPosition,
+      // Convert local end position to world space for projectile flight path
+      endPosition: this.earthMesh.localToWorld(endPositionLocal.clone()),
     };
 
     this.projectiles.set(id, projectile);
@@ -157,7 +173,7 @@ export class WeaponEffectsManager {
   }
 
   /**
-   * Create explosion at a location (can be called directly or after projectile impact)
+   * Create explosion at a location (in Earth's local space)
    */
   createExplosion(
     targetLocationId: string,
@@ -200,12 +216,13 @@ export class WeaponEffectsManager {
     shockwave.position.copy(position);
     // Orient shockwave to face outward from Earth center
     shockwave.lookAt(0, 0, 0);
-    shockwave.rotateX(Math.PI); // Flip to face away from center
+    shockwave.rotateX(Math.PI);
     shockwave.scale.setScalar(scale * 0.5);
 
-    this.effectsGroup.add(core);
-    this.effectsGroup.add(outer);
-    this.effectsGroup.add(shockwave);
+    // Add to Earth's surface effects group
+    this.surfaceEffectsGroup.add(core);
+    this.surfaceEffectsGroup.add(outer);
+    this.surfaceEffectsGroup.add(shockwave);
 
     const explosion: ActiveExplosion = {
       id,
@@ -223,7 +240,7 @@ export class WeaponEffectsManager {
   }
 
   /**
-   * Create a persistent impact mark on the surface
+   * Create an impact mark on the surface (in Earth's local space, fades over time)
    */
   createImpactMark(
     targetLocationId: string,
@@ -233,11 +250,13 @@ export class WeaponEffectsManager {
     // Check if there's already an impact mark for this location
     for (const mark of this.impactMarks.values()) {
       if (mark.targetLocationId === targetLocationId) {
-        // Upgrade importance if new attack is more severe
-        if (IMPORTANCE_SCALE[importance] > IMPORTANCE_SCALE[mark.importance]) {
+        // Upgrade importance if new attack is more severe, reset timer
+        if (IMPORTANCE_SCALE[importance] >= IMPORTANCE_SCALE[mark.importance]) {
           mark.importance = importance;
+          mark.createdAt = performance.now();
           const material = mark.mesh.material as THREE.MeshBasicMaterial;
           material.color.setHex(COLORS.impact[importance]);
+          material.opacity = 0.8;
           mark.mesh.scale.setScalar(IMPORTANCE_SCALE[importance]);
         }
         return mark.id;
@@ -259,10 +278,11 @@ export class WeaponEffectsManager {
     mesh.position.copy(position);
     // Orient to lay flat on surface (face outward from center)
     mesh.lookAt(0, 0, 0);
-    mesh.rotateX(Math.PI); // Flip to face away from center
+    mesh.rotateX(Math.PI);
     mesh.scale.setScalar(IMPORTANCE_SCALE[importance]);
 
-    this.effectsGroup.add(mesh);
+    // Add to Earth's surface effects group
+    this.surfaceEffectsGroup.add(mesh);
 
     const impactMark: ActiveImpactMark = {
       id,
@@ -283,18 +303,18 @@ export class WeaponEffectsManager {
   update(speedMultiplier: number = 1): void {
     const now = performance.now();
 
-    // Update projectiles
+    // Update projectiles (world space)
     for (const [id, projectile] of this.projectiles) {
       const elapsed = (now - projectile.startTime) * speedMultiplier;
       const progress = Math.min(elapsed / projectile.duration, 1);
 
       if (progress >= 1) {
-        // Projectile reached target - create explosion and impact mark
-        this.effectsGroup.remove(projectile.mesh);
+        // Projectile reached target - remove and create surface effects
+        this.projectilesGroup.remove(projectile.mesh);
         this.disposeProjectileMesh(projectile.mesh);
         this.projectiles.delete(id);
 
-        // Trigger explosion and impact
+        // Trigger explosion and impact mark (in Earth's local space)
         this.createExplosion(
           projectile.targetLocationId,
           projectile.targetCoordinates,
@@ -306,7 +326,6 @@ export class WeaponEffectsManager {
           projectile.importance
         );
       } else {
-        // Animate projectile along path with slight arc
         this.updateProjectilePosition(projectile, progress);
       }
     }
@@ -317,33 +336,29 @@ export class WeaponEffectsManager {
       const progress = Math.min(elapsed / explosion.duration, 1);
 
       if (progress >= 1) {
-        // Explosion complete - remove meshes
-        this.effectsGroup.remove(explosion.meshes.core);
-        this.effectsGroup.remove(explosion.meshes.outer);
-        this.effectsGroup.remove(explosion.meshes.shockwave);
+        this.surfaceEffectsGroup.remove(explosion.meshes.core);
+        this.surfaceEffectsGroup.remove(explosion.meshes.outer);
+        this.surfaceEffectsGroup.remove(explosion.meshes.shockwave);
         this.disposeExplosionMeshes(explosion.meshes);
         this.explosions.delete(id);
       } else {
-        // Animate explosion
         this.updateExplosion(explosion, progress);
       }
     }
 
-    // Update impact marks (fade if lifetime is set)
-    if (this.config.impactMarkLifetime > 0) {
-      for (const [id, mark] of this.impactMarks) {
-        const age = now - mark.createdAt;
-        if (age > this.config.impactMarkLifetime) {
-          this.effectsGroup.remove(mark.mesh);
-          (mark.mesh.material as THREE.Material).dispose();
-          this.impactMarks.delete(id);
-        } else {
-          // Fade out in last 20% of lifetime
-          const fadeStart = this.config.impactMarkLifetime * 0.8;
-          if (age > fadeStart) {
-            const fadeProgress = (age - fadeStart) / (this.config.impactMarkLifetime * 0.2);
-            (mark.mesh.material as THREE.MeshBasicMaterial).opacity = 0.8 * (1 - fadeProgress);
-          }
+    // Update impact marks - always fade out over time
+    for (const [id, mark] of this.impactMarks) {
+      const age = now - mark.createdAt;
+      if (age > IMPACT_MARK_FADE_DURATION) {
+        this.surfaceEffectsGroup.remove(mark.mesh);
+        (mark.mesh.material as THREE.Material).dispose();
+        this.impactMarks.delete(id);
+      } else {
+        // Fade out in last 40% of lifetime
+        const fadeStart = IMPACT_MARK_FADE_DURATION * 0.6;
+        if (age > fadeStart) {
+          const fadeProgress = (age - fadeStart) / (IMPACT_MARK_FADE_DURATION * 0.4);
+          (mark.mesh.material as THREE.MeshBasicMaterial).opacity = 0.8 * (1 - fadeProgress);
         }
       }
     }
@@ -354,13 +369,13 @@ export class WeaponEffectsManager {
    */
   private findFiringShip(targetCoords: Coordinates, weaponType: WeaponType): OrbitalObject | null {
     const targetPos = latLngToVector3(targetCoords, EARTH_RADIUS);
+    // Convert target to world space to compare with ship positions
+    const targetWorld = this.earthMesh.localToWorld(targetPos.clone());
     let bestShip: OrbitalObject | null = null;
     let bestScore = Infinity;
 
-    // Get ships that can fire the weapon type
     const validTypes = this.getValidShipTypes(weaponType);
 
-    // Check all ships
     const allMeshes = this.fleetManager.getAllMeshes();
     for (const mesh of allMeshes) {
       const orbitalId = mesh.userData.orbitalId as string;
@@ -369,11 +384,10 @@ export class WeaponEffectsManager {
       const ship = this.fleetManager.getOrbitalObject(orbitalId);
       if (!ship || !validTypes.includes(ship.type as string)) continue;
 
-      // Score based on distance and whether ship is on visible side
-      const distance = mesh.position.distanceTo(targetPos);
-      const dotProduct = mesh.position.clone().normalize().dot(targetPos.clone().normalize());
+      const distance = mesh.position.distanceTo(targetWorld);
+      const dotProduct = mesh.position.clone().normalize().dot(targetWorld.clone().normalize());
 
-      // Prefer ships on the same hemisphere as target (dot product > 0)
+      // Prefer ships on the same hemisphere as target
       const visibilityBonus = dotProduct > 0 ? 0 : 2;
       const score = distance + visibilityBonus;
 
@@ -429,7 +443,7 @@ export class WeaponEffectsManager {
     const trail = new THREE.Mesh(this.projectileTrailGeometry, trailMaterial);
     trail.scale.setScalar(scale);
     trail.position.y = -0.05 * scale;
-    trail.rotation.x = Math.PI; // Point backward
+    trail.rotation.x = Math.PI;
     group.add(trail);
 
     // Point light for glow effect
@@ -462,7 +476,7 @@ export class WeaponEffectsManager {
     const nextProgress = Math.min(progress + 0.01, 1);
     const nextPos = new THREE.Vector3().lerpVectors(startPosition, endPosition, nextProgress);
     mesh.lookAt(nextPos);
-    mesh.rotateX(Math.PI / 2); // Align cylinder with direction
+    mesh.rotateX(Math.PI / 2);
   }
 
   /**
@@ -471,10 +485,6 @@ export class WeaponEffectsManager {
   private updateExplosion(explosion: ActiveExplosion, progress: number): void {
     const { meshes, importance } = explosion;
     const scale = IMPORTANCE_SCALE[importance];
-
-    // Phase 1: Expand (0-0.4)
-    // Phase 2: Hold (0.4-0.6)
-    // Phase 3: Fade (0.6-1.0)
 
     if (progress < 0.4) {
       // Expanding
@@ -503,15 +513,11 @@ export class WeaponEffectsManager {
       (meshes.outer.material as THREE.MeshBasicMaterial).opacity = 0.7 * opacity;
       (meshes.shockwave.material as THREE.MeshBasicMaterial).opacity = 0.25 * opacity;
 
-      // Continue expanding slightly while fading
       meshes.outer.scale.setScalar(scale * (1.5 + fadeProgress * 0.5));
       meshes.shockwave.scale.setScalar(scale * (2.5 + fadeProgress));
     }
   }
 
-  /**
-   * Easing functions
-   */
   private easeInQuad(t: number): number {
     return t * t;
   }
@@ -520,9 +526,6 @@ export class WeaponEffectsManager {
     return 1 - (1 - t) * (1 - t);
   }
 
-  /**
-   * Dispose projectile mesh resources
-   */
   private disposeProjectileMesh(mesh: THREE.Group): void {
     mesh.traverse((child) => {
       if (child instanceof THREE.Mesh) {
@@ -536,71 +539,45 @@ export class WeaponEffectsManager {
     });
   }
 
-  /**
-   * Dispose explosion mesh resources
-   */
   private disposeExplosionMeshes(meshes: { core: THREE.Mesh; outer: THREE.Mesh; shockwave: THREE.Mesh }): void {
     (meshes.core.material as THREE.Material).dispose();
     (meshes.outer.material as THREE.Material).dispose();
     (meshes.shockwave.material as THREE.Material).dispose();
   }
 
-  /**
-   * Get the effects group for adding to scene
-   */
-  getEffectsGroup(): THREE.Group {
-    return this.effectsGroup;
-  }
-
-  /**
-   * Check if there are any active effects
-   */
   hasActiveEffects(): boolean {
     return this.projectiles.size > 0 || this.explosions.size > 0;
   }
 
-  /**
-   * Get count of impact marks
-   */
   getImpactMarkCount(): number {
     return this.impactMarks.size;
   }
 
-  /**
-   * Clear all effects
-   */
   clearAll(): void {
-    // Clear projectiles
     for (const projectile of this.projectiles.values()) {
-      this.effectsGroup.remove(projectile.mesh);
+      this.projectilesGroup.remove(projectile.mesh);
       this.disposeProjectileMesh(projectile.mesh);
     }
     this.projectiles.clear();
 
-    // Clear explosions
     for (const explosion of this.explosions.values()) {
-      this.effectsGroup.remove(explosion.meshes.core);
-      this.effectsGroup.remove(explosion.meshes.outer);
-      this.effectsGroup.remove(explosion.meshes.shockwave);
+      this.surfaceEffectsGroup.remove(explosion.meshes.core);
+      this.surfaceEffectsGroup.remove(explosion.meshes.outer);
+      this.surfaceEffectsGroup.remove(explosion.meshes.shockwave);
       this.disposeExplosionMeshes(explosion.meshes);
     }
     this.explosions.clear();
 
-    // Clear impact marks
     for (const mark of this.impactMarks.values()) {
-      this.effectsGroup.remove(mark.mesh);
+      this.surfaceEffectsGroup.remove(mark.mesh);
       (mark.mesh.material as THREE.Material).dispose();
     }
     this.impactMarks.clear();
   }
 
-  /**
-   * Cleanup
-   */
   dispose(): void {
     this.clearAll();
 
-    // Dispose shared geometries
     this.projectileGeometry.dispose();
     this.projectileTrailGeometry.dispose();
     this.explosionCoreGeometry.dispose();
@@ -608,7 +585,7 @@ export class WeaponEffectsManager {
     this.shockwaveGeometry.dispose();
     this.impactMarkGeometry.dispose();
 
-    // Remove from scene
-    this.scene.remove(this.effectsGroup);
+    this.scene.remove(this.projectilesGroup);
+    this.earthMesh.remove(this.surfaceEffectsGroup);
   }
 }

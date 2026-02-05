@@ -19,7 +19,7 @@ import { greatCircleDistance } from './GeoUtils';
 function initLocationState(location: StrategicLocation): LocationState {
   return {
     ...location,
-    status: 'unknown',
+    status: 'analyzed',
     controlledBy: 'human',
     stability: 100,
   };

@@ -355,8 +355,8 @@ export const initThreeScene = async (
   const fleetManager = new FleetManager(scene);
   console.log("Alien fleet deployed to Earth orbit");
 
-  // Create weapon effects manager
-  const weaponEffectsManager = new WeaponEffectsManager(scene, fleetManager);
+  // Create weapon effects manager (surface effects parented to Earth mesh)
+  const weaponEffectsManager = new WeaponEffectsManager(scene, earth, fleetManager);
   console.log("Weapon effects system initialized");
 
   // Create UI components
@@ -424,17 +424,39 @@ export const initThreeScene = async (
     alienCommandFeed.addEntry(event, time);
     humanNewsFeed.addEntry(event, time);
 
-    // Trigger weapon effects for attack/destroy events
-    if ((event.type === 'attack' || event.type === 'destroy') && event.locationId) {
+    // Trigger weapon effects for combat events
+    if (event.locationId) {
       const location = worldData.getLocation(event.locationId);
       if (location) {
-        // Fire weapon from orbit to target
-        weaponEffectsManager.fireWeapon(
-          event.locationId,
-          location.coordinates,
-          event.importance || 'major',
-          event.type === 'destroy' ? 'plasma_missile' : 'kinetic_rod'
-        );
+        const importance = event.importance || 'major';
+        switch (event.type) {
+          case 'attack':
+            weaponEffectsManager.fireWeapon(
+              event.locationId, location.coordinates, importance, 'kinetic_rod'
+            );
+            break;
+          case 'destroy':
+            // Destruction gets multiple projectiles for impact
+            weaponEffectsManager.fireWeapon(
+              event.locationId, location.coordinates, importance, 'plasma_missile'
+            );
+            weaponEffectsManager.fireWeapon(
+              event.locationId, location.coordinates, importance, 'kinetic_rod'
+            );
+            break;
+          case 'occupy':
+            // Occupation involves orbital bombardment before landing
+            weaponEffectsManager.fireWeapon(
+              event.locationId, location.coordinates, importance, 'plasma_missile'
+            );
+            break;
+          case 'hack':
+            // Hack uses a beam weapon (EMP/cyber from orbit)
+            weaponEffectsManager.fireWeapon(
+              event.locationId, location.coordinates, 'minor', 'beam'
+            );
+            break;
+        }
       }
     }
 

@@ -27,14 +27,15 @@ const TYPE_COLORS: Record<LocationType, number> = {
 };
 
 // Status modifiers for marker appearance
+// All markers are always visible (no fog of war)
 const STATUS_OPACITY: Record<LocationStatus, number> = {
-  unknown: 0.0, // Hidden - fog of war
-  detected: 0.5, // Partially visible
+  unknown: 1.0,
+  detected: 1.0,
   analyzed: 1.0,
   targeted: 1.0,
-  neutralized: 0.4,
+  neutralized: 0.5,
   occupied: 1.0,
-  contested: 0.8,
+  contested: 0.9,
 };
 
 interface Marker {
@@ -386,21 +387,26 @@ export class MarkerRenderer {
       const selectedBonus = marker.isSelected ? 1.3 : 1;
       marker.sprite.scale.set(scale * selectedBonus, scale * selectedBonus, 1);
 
-      // Update visibility based on position relative to camera
+      // Get world position of marker (since markers are children of Earth mesh)
+      const worldPos = new THREE.Vector3();
+      marker.sprite.getWorldPosition(worldPos);
+
+      // Check if marker is on the visible side of the globe
       const isVisible = isPointVisibleFromCamera(
-        marker.sprite.position,
+        worldPos,
         this.camera,
         this.earthCenter,
         this.earthRadius,
       );
 
       const material = marker.sprite.material as THREE.SpriteMaterial;
+      const statusOpacity = STATUS_OPACITY[marker.status];
 
       if (isVisible) {
-        material.opacity = 1.0;
+        material.opacity = statusOpacity;
       } else {
         // Fade out markers on the back of the globe
-        material.opacity = 0.15;
+        material.opacity = statusOpacity * 0.15;
       }
     }
   }
