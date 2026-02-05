@@ -7,6 +7,7 @@ import { OverlayToggle } from "./components/OverlayToggle";
 import { CameraController } from "./rendering/CameraController";
 import { MarkerRenderer } from "./rendering/MarkerRenderer";
 import { FleetManager } from "./rendering/FleetManager";
+import { WeaponEffectsManager } from "./rendering/WeaponEffectsManager";
 import { WorldData } from "./world/WorldData";
 import { loadWorldData } from "./world/WorldDataLoader";
 import { eventBus } from "./core/EventBus";
@@ -353,6 +354,10 @@ export const initThreeScene = async (
   const fleetManager = new FleetManager(scene);
   console.log("Alien fleet deployed to Earth orbit");
 
+  // Create weapon effects manager
+  const weaponEffectsManager = new WeaponEffectsManager(scene, fleetManager);
+  console.log("Weapon effects system initialized");
+
   // Create UI components
   const tooltip = new Tooltip();
   tooltip.appendTo(container);
@@ -415,6 +420,20 @@ export const initThreeScene = async (
     // Update feeds
     alienCommandFeed.addEntry(event, time);
     humanNewsFeed.addEntry(event, time);
+
+    // Trigger weapon effects for attack/destroy events
+    if ((event.type === 'attack' || event.type === 'destroy') && event.locationId) {
+      const location = worldData.getLocation(event.locationId);
+      if (location) {
+        // Fire weapon from orbit to target
+        weaponEffectsManager.fireWeapon(
+          event.locationId,
+          location.coordinates,
+          event.importance || 'major',
+          event.type === 'destroy' ? 'plasma_missile' : 'kinetic_rod'
+        );
+      }
+    }
 
     // Update location status if effect specified
     if (event.effect) {
@@ -585,7 +604,14 @@ export const initThreeScene = async (
   scene.add(atmosphere);
 
   // Realistic rotation speeds
+  // Full Earth rotation = 2π radians in 24 hours
+  // At 60fps, that's 24 * 60 * 60 * 60 frames for one rotation
   const baseEarthRotationSpeed = (2 * Math.PI) / (24 * 60 * 60 * 60);
+
+  // Sun orbit angle (for day/night cycle visualization)
+  // The sun "orbits" around Earth for visual effect
+  let sunOrbitAngle = 0;
+  const sunOrbitRadius = 10;
 
   let moonOrbitAngle = 0;
 
@@ -598,6 +624,9 @@ export const initThreeScene = async (
 
     // Update alien fleet orbital positions
     fleetManager.update(16, speedMultiplier); // ~60fps frame time
+
+    // Update weapon effects (projectiles, explosions)
+    weaponEffectsManager.update(speedMultiplier);
 
     // LOD: Check camera distance and swap textures
     const cameraDistance = camera.position.distanceTo(earth.position);
@@ -616,10 +645,18 @@ export const initThreeScene = async (
     const moonOrbitSpeed = earthRotationSpeed / 27.3;
     const moonRotationSpeed = moonOrbitSpeed;
 
-    // Rotate Earth on its axis
-    earth.rotation.y += earthRotationSpeed;
+    // Update sun position for day/night cycle
+    // Sun completes one "orbit" per Earth day (24 game hours)
+    sunOrbitAngle += earthRotationSpeed;
+    const sunX = Math.cos(sunOrbitAngle) * sunOrbitRadius;
+    const sunZ = Math.sin(sunOrbitAngle) * sunOrbitRadius;
+    sunLight.position.set(sunX, 0, sunZ);
 
-    // Rotate clouds slightly faster than Earth
+    // Update shader sun direction uniform
+    const sunDirection = new THREE.Vector3(sunX, 0, sunZ).normalize();
+    earthMaterial.uniforms.sunDirection.value.copy(sunDirection);
+
+    // Clouds rotate slightly faster than Earth (wind effect)
     clouds.rotation.y += cloudRotationSpeed;
 
     // Rotate Moon on its axis (slowly, tidally locked)
@@ -650,6 +687,7 @@ export const initThreeScene = async (
     cameraController.dispose();
     markerRenderer.dispose();
     fleetManager.dispose();
+    weaponEffectsManager.dispose();
     eventBus.clear();
 
     // Dispose game systems
